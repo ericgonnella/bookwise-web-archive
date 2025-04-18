@@ -47,10 +47,18 @@ async function fetchPageContent(url: string): Promise<{
 }> {
   try {
     const response = await fetch(url, { 
-      mode: 'cors', 
+      mode: 'no-cors', // Try no-cors mode first
       credentials: 'omit',
       headers: { 'Accept': 'text/html' }
     });
+    
+    // Since no-cors returns opaque responses, we might not be able to read content
+    // Let's check if we got a valid response
+    if (!response.ok && response.type === 'opaque') {
+      console.log('Using fallback for:', url);
+      return getFallbackPageInfo(url);
+    }
+    
     const html = await response.text();
     
     // Create a temporary DOM element to parse the HTML
@@ -77,12 +85,31 @@ async function fetchPageContent(url: string): Promise<{
     };
   } catch (error) {
     console.error('Error fetching page content:', error);
-    return {
-      title: '',
-      description: '',
-      content: []
-    };
+    return getFallbackPageInfo(url);
   }
+}
+
+function getFallbackPageInfo(url: string): { title: string; description: string; content: string[] } {
+  const domain = extractDomainFromUrl(url);
+  const pathParts = new URL(url).pathname.split('/').filter(Boolean);
+  
+  // Make a title based on URL parts
+  let title = domain;
+  if (pathParts.length > 0) {
+    const lastPart = pathParts[pathParts.length - 1]
+      .replace(/[-_]/g, ' ')
+      .replace(/\.\w+$/, ''); // Remove file extensions
+    
+    if (lastPart) {
+      title = `${lastPart.charAt(0).toUpperCase() + lastPart.slice(1)} - ${domain}`;
+    }
+  }
+  
+  return {
+    title: title,
+    description: `Resource from ${domain}`,
+    content: [`This page is from ${domain}`]
+  };
 }
 
 function generateDescriptionFromContent(pageData: { 
@@ -125,7 +152,6 @@ function generateDescriptionFromContent(pageData: {
   return `Resource from ${domain}`;
 }
 
-// Helper to extract domain from URL
 function extractDomainFromUrl(url: string): string {
   try {
     const urlObj = new URL(url);
@@ -135,7 +161,6 @@ function extractDomainFromUrl(url: string): string {
   }
 }
 
-// Enhanced category guessing function that uses description content
 function guessCategoryFromDescription(description: string): BookmarkCategory {
   const lowerDesc = description.toLowerCase();
   
@@ -164,7 +189,6 @@ function guessCategoryFromDescription(description: string): BookmarkCategory {
   return guessCategory(description);
 }
 
-// Enhanced category guessing function
 function guessCategory(url: string): BookmarkCategory {
   const lowerUrl = url.toLowerCase();
   
@@ -193,6 +217,44 @@ function guessCategory(url: string): BookmarkCategory {
 
 async function captureScreenshot(url: string): Promise<string | null> {
   try {
+    // Generate a placeholder image with site domain if we can't get a real screenshot
+    const generatePlaceholderImage = (domain: string): string => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 500;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        // Fill background
+        ctx.fillStyle = '#f4f4f8';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw border
+        ctx.strokeStyle = '#e2e2e2';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+        
+        // Draw favicon placeholder
+        ctx.fillStyle = '#dddddd';
+        ctx.beginPath();
+        ctx.arc(250, 120, 40, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw site name
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = '#333333';
+        ctx.textAlign = 'center';
+        ctx.fillText(domain, 250, 200);
+        
+        // Draw "screenshot unavailable" text
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#888888';
+        ctx.fillText('Preview not available', 250, 240);
+      }
+      
+      return canvas.toDataURL('image/jpeg', 0.7);
+    };
+
     // Create a temporary iframe to load the page
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -200,18 +262,35 @@ async function captureScreenshot(url: string): Promise<string | null> {
     iframe.style.width = '1024px';   // Standard width
     iframe.style.height = '768px';   // Standard height
     iframe.style.visibility = 'hidden';
+    iframe.sandbox = 'allow-same-origin';  // Restrict iframe capabilities for security
     
     document.body.appendChild(iframe);
     
-    // Wait for iframe to load
-    await new Promise((resolve) => {
-      iframe.onload = resolve;
-      iframe.src = url;
+    // Set a timeout to handle cases where the iframe doesn't load
+    const iframeLoadPromise = new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Iframe loading timed out'));
+      }, 5000);
+      
+      iframe.onload = () => {
+        clearTimeout(timeoutId);
+        resolve();
+      };
+      
+      iframe.onerror = () => {
+        clearTimeout(timeoutId);
+        reject(new Error('Iframe failed to load'));
+      };
     });
-
+    
+    // Try to load the URL in the iframe
+    iframe.src = url;
+    
     try {
-      // Try to access iframe content (may fail due to CORS)
-      const canvas = await html2canvas(iframe.contentDocument?.documentElement || iframe.contentDocument?.body, {
+      await iframeLoadPromise;
+      
+      // Try to capture screenshot
+      const canvas = await html2canvas(iframe.contentDocument?.documentElement || iframe.contentWindow?.document.documentElement, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -225,14 +304,17 @@ async function captureScreenshot(url: string): Promise<string | null> {
       return screenshot;
     } catch (canvasError) {
       console.error('Canvas generation failed:', canvasError);
-      return null;
+      // Return a placeholder instead
+      const domain = extractDomainFromUrl(url);
+      return generatePlaceholderImage(domain);
     } finally {
       // Clean up
       document.body.removeChild(iframe);
     }
   } catch (error) {
     console.error('Screenshot capture error:', error);
-    return null;
+    const domain = extractDomainFromUrl(url);
+    return generatePlaceholderImage(domain);
   }
 }
 

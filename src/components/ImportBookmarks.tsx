@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2 } from "lucide-react";
+import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
 import { Progress } from "@/components/ui/progress";
 import { Bookmark } from "../types";
@@ -10,6 +10,7 @@ import { enhanceBookmarksWithAI } from "@/services/aiService";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
@@ -151,16 +152,29 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
     <div className="mb-6">
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-end gap-2">
-            <Switch 
-              id="use-ai" 
-              checked={useAI} 
-              onCheckedChange={setUseAI} 
-            />
-            <Label htmlFor="use-ai" className="flex items-center gap-1">
-              <Sparkles className="h-4 w-4 text-amber-500" />
-              AI-Enhanced Import
-            </Label>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-end gap-2">
+              <Switch 
+                id="use-ai" 
+                checked={useAI} 
+                onCheckedChange={setUseAI} 
+              />
+              <Label htmlFor="use-ai" className="flex items-center gap-1">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                AI-Enhanced Import
+              </Label>
+            </div>
+            
+            {useAI && (
+              <Alert variant="default" className="bg-muted/50">
+                <Info className="h-4 w-4" />
+                <AlertTitle>About Website Screenshots</AlertTitle>
+                <AlertDescription className="text-xs text-muted-foreground">
+                  Some websites may block screenshot capture due to security settings. 
+                  In these cases, a placeholder image will be used instead.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         </CardHeader>
         
