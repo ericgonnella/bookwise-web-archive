@@ -227,14 +227,11 @@ async function captureScreenshot(url: string): Promise<string | null> {
 }
 
 /**
- * Process bookmarks with AI to enhance with descriptions and better categorization
+ * Process a batch of bookmarks with AI enhancement
  */
-export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Bookmark[]> {
-  const enhancedBookmarks = await Promise.all(
+async function processBatch(bookmarks: Bookmark[]): Promise<Bookmark[]> {
+  return Promise.all(
     bookmarks.map(async (bookmark) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-      
       // Fetch page content and screenshot in parallel
       const [pageData, screenshot] = await Promise.all([
         fetchPageContent(bookmark.url),
@@ -285,6 +282,35 @@ export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Boo
       };
     })
   );
+}
+
+/**
+ * Process bookmarks with AI in batches to enhance with descriptions and better categorization
+ */
+export async function enhanceBookmarksWithAI(
+  bookmarks: Bookmark[], 
+  batchSize: number = 5,
+  onProgress?: (processed: number, total: number) => void
+): Promise<Bookmark[]> {
+  const enhancedBookmarks: Bookmark[] = [];
+  const totalBookmarks = bookmarks.length;
+  
+  // Process bookmarks in batches
+  for (let i = 0; i < totalBookmarks; i += batchSize) {
+    const batch = bookmarks.slice(i, i + batchSize);
+    const processedBatch = await processBatch(batch);
+    enhancedBookmarks.push(...processedBatch);
+    
+    // Report progress if callback provided
+    if (onProgress) {
+      onProgress(Math.min(i + batchSize, totalBookmarks), totalBookmarks);
+    }
+    
+    // Add a small delay between batches to prevent overwhelming
+    if (i + batchSize < totalBookmarks) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
   
   return enhancedBookmarks;
 }

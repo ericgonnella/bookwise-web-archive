@@ -1,8 +1,8 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
+import { Progress } from "@/components/ui/progress";
 import { Bookmark } from "../types";
 import { useToast } from "@/hooks/use-toast";
 import { enhanceBookmarksWithAI } from "@/services/aiService";
@@ -17,6 +17,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useAI, setUseAI] = useState(true);
@@ -37,6 +38,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
     setIsProcessing(true);
     setError(null);
     setIsSuccess(false);
+    setProgress(0);
 
     try {
       if (file.type !== "text/html" && !file.name.endsWith(".html")) {
@@ -55,11 +57,19 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
         setIsAiProcessing(true);
         toast({
           title: "AI Processing",
-          description: `Analyzing ${parsedBookmarks.length} bookmarks with AI...`,
+          description: `Processing ${parsedBookmarks.length} bookmarks in batches...`,
         });
         
         try {
-          parsedBookmarks = await enhanceBookmarksWithAI(parsedBookmarks);
+          parsedBookmarks = await enhanceBookmarksWithAI(
+            parsedBookmarks,
+            5, // Process 5 bookmarks at a time
+            (processed, total) => {
+              const progressPercent = (processed / total) * 100;
+              setProgress(progressPercent);
+            }
+          );
+          
           toast({
             title: "AI Analysis Complete",
             description: `Enhanced ${parsedBookmarks.length} bookmarks with AI descriptions and categories`,
@@ -171,8 +181,11 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
             <div className="text-primary animate-pulse flex flex-col items-center">
               <Sparkles className="h-12 w-12 mb-2" />
               <p>AI is analyzing your bookmarks...</p>
-              <div className="mt-2">
-                <Loader2 className="h-6 w-6 animate-spin" />
+              <div className="w-full max-w-xs mt-4">
+                <Progress value={progress} className="h-2" />
+                <p className="text-sm text-muted-foreground mt-2">
+                  {Math.round(progress)}% complete
+                </p>
               </div>
             </div>
           ) : (
@@ -220,7 +233,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
       </div>
       <p className="text-xs text-muted-foreground mt-2">
         {useAI 
-          ? "AI will analyze your bookmarks to provide descriptions and better categorization" 
+          ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
           : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
       </p>
     </div>
