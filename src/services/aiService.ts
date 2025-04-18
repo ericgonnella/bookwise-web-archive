@@ -1,5 +1,5 @@
 
-import { Bookmark } from "@/types";
+import { Bookmark, BookmarkCategory } from "@/types";
 
 // Categories for the AI to classify bookmarks into
 export const BOOKMARK_CATEGORIES = [
@@ -14,15 +14,11 @@ export const BOOKMARK_CATEGORIES = [
   "social",
   "entertainment",
   "shopping",
-  "travel",
-  "finance",
-  "education",
   "development",
   "technology",
-  "health",
   "reference",
   "other"
-];
+] as const;
 
 /**
  * Process bookmarks with AI to enhance with descriptions and better categorization
@@ -38,42 +34,47 @@ export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Boo
       
       const domain = extractDomainFromUrl(bookmark.url);
       let description = "";
+      let primaryCategory: BookmarkCategory = "other";
       let aiTags: string[] = [];
       
-      // Simple rule-based simulation of AI categorization
+      // Improved categorization logic
       if (bookmark.url.includes("github.com")) {
-        description = "A GitHub repository or profile for software development and collaboration.";
+        description = "A GitHub repository for software development.";
+        primaryCategory = "development";
         aiTags = ["development", "tools"];
       } else if (bookmark.url.includes("stackoverflow.com")) {
-        description = "A programming Q&A platform for developers to share knowledge.";
-        aiTags = ["development", "reference"];
-      } else if (bookmark.url.includes("react")) {
-        description = "Content related to the React JavaScript library for building user interfaces.";
-        aiTags = ["libraries", "development", "frameworks"];
-      } else if (bookmark.url.includes("tailwind")) {
-        description = "Content about Tailwind CSS, a utility-first CSS framework.";
-        aiTags = ["libraries", "development", "frameworks"];
-      } else if (bookmark.url.includes("youtube")) {
-        description = "A video sharing platform with various content.";
-        aiTags = ["entertainment", "education"];
-      } else if (bookmark.url.includes("medium.com")) {
-        description = "An article or blog post from Medium's publishing platform.";
-        aiTags = ["article", "blog"];
-      } else if (bookmark.url.includes("news")) {
-        description = "News article or publication providing current information.";
-        aiTags = ["news"];
+        description = "A programming Q&A resource.";
+        primaryCategory = "reference";
+        aiTags = ["development"];
+      } else if (bookmark.url.includes("react") || bookmark.url.includes("vue") || bookmark.url.includes("angular")) {
+        description = "Frontend framework related content.";
+        primaryCategory = "frameworks";
+        aiTags = ["development", "frameworks"];
+      } else if (bookmark.url.includes("npm") || bookmark.url.includes("yarn")) {
+        description = "Package management resource.";
+        primaryCategory = "tools";
+        aiTags = ["development"];
       } else if (bookmark.url.includes("docs") || bookmark.url.includes("documentation")) {
-        description = `Documentation for ${domain} to help users understand its features and usage.`;
-        aiTags = ["documentation", "reference"];
+        description = `Documentation for ${domain}.`;
+        primaryCategory = "documentation";
+        aiTags = ["reference"];
+      } else if (bookmark.url.includes("tutorial") || bookmark.url.includes("learn")) {
+        description = `Educational content about ${domain}.`;
+        primaryCategory = "tutorial";
+        aiTags = ["education"];
       } else {
-        description = `Website on ${domain} with content related to ${guessCategory(bookmark.url)}.`;
-        aiTags = [guessCategory(bookmark.url)];
+        description = `Website on ${domain}`;
+        primaryCategory = guessCategory(bookmark.url);
+        aiTags = [primaryCategory];
       }
+      
+      // Limit tags to maximum 3 most relevant ones
+      const finalTags = [...new Set([primaryCategory, ...aiTags.slice(0, 2)])];
       
       return {
         ...bookmark,
-        description: description,
-        tags: [...new Set([...bookmark.tags, ...aiTags])].slice(0, 5) // Combine tags and limit to 5
+        description,
+        tags: finalTags
       };
     })
   );
@@ -91,8 +92,8 @@ function extractDomainFromUrl(url: string): string {
   }
 }
 
-// Simple category guessing function
-function guessCategory(url: string): string {
+// Enhanced category guessing function
+function guessCategory(url: string): BookmarkCategory {
   const lowerUrl = url.toLowerCase();
   
   if (lowerUrl.includes("github") || lowerUrl.includes("gitlab") || 
@@ -101,21 +102,19 @@ function guessCategory(url: string): string {
   }
   if (lowerUrl.includes("learn") || lowerUrl.includes("course") || 
       lowerUrl.includes("tutorial")) {
-    return "education";
+    return "tutorial";
   }
   if (lowerUrl.includes("shop") || lowerUrl.includes("buy") || 
       lowerUrl.includes("store")) {
     return "shopping";
   }
-  if (lowerUrl.includes("news") || lowerUrl.includes("times") || 
-      lowerUrl.includes("post")) {
-    return "news";
+  if (lowerUrl.includes("news") || lowerUrl.includes("blog")) {
+    return "article";
   }
   if (lowerUrl.includes("twitter") || lowerUrl.includes("facebook") || 
       lowerUrl.includes("instagram")) {
     return "social";
   }
   
-  // Default category if no patterns match
-  return "reference";
+  return "other";
 }
