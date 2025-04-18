@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info, FilterIcon } from "lucide-react";
@@ -10,6 +11,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import BrowserImport from "./BrowserImport";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
@@ -17,6 +20,7 @@ interface ImportBookmarksProps {
 }
 
 const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBookmarks = [] }) => {
+  const [activeTab, setActiveTab] = useState<string>("file");
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
@@ -235,6 +239,50 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
     }
   };
 
+  const handleBrowserImport = (bookmarks: Bookmark[]) => {
+    // Process browser imports with the same settings as file imports
+    if (useAI && bookmarks.length > 0) {
+      setIsAiProcessing(true);
+      toast({
+        title: "AI Processing",
+        description: `Processing ${bookmarks.length} bookmarks in batches...`,
+      });
+      
+      enhanceBookmarksWithAI(
+        bookmarks,
+        5,
+        (processed, total) => {
+          const progressPercent = (processed / total) * 100;
+          setProgress(progressPercent);
+        }
+      ).then(enhancedBookmarks => {
+        onImport(enhancedBookmarks);
+        setIsSuccess(true);
+        toast({
+          title: "Import successful",
+          description: `${enhancedBookmarks.length} bookmarks imported from browser`,
+        });
+      }).catch(err => {
+        console.error("AI processing error:", err);
+        toast({
+          variant: "destructive",
+          title: "AI Processing Failed",
+          description: "Using basic categorization instead.",
+        });
+        onImport(bookmarks);
+      }).finally(() => {
+        setIsAiProcessing(false);
+      });
+    } else {
+      onImport(bookmarks);
+      setIsSuccess(true);
+      toast({
+        title: "Import successful",
+        description: `${bookmarks.length} bookmarks imported from browser`,
+      });
+    }
+  };
+
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isSuccess) {
@@ -307,93 +355,106 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
         </CardHeader>
         
         <CardContent>
-          <div
-            className={`p-6 border-2 border-dashed rounded-lg text-center transition-all ${
-              isDragging ? "border-primary bg-primary/5" : "border-border"
-            } ${isSuccess ? "bg-green-50 border-green-300" : ""} ${
-              error ? "bg-destructive/10 border-destructive" : ""
-            }`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <input
-              type="file"
-              accept=".html"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid grid-cols-2 mb-4">
+              <TabsTrigger value="file">File Import</TabsTrigger>
+              <TabsTrigger value="browser">Browser Sync</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="file">
+              <div
+                className={`p-6 border-2 border-dashed rounded-lg text-center transition-all ${
+                  isDragging ? "border-primary bg-primary/5" : "border-border"
+                } ${isSuccess ? "bg-green-50 border-green-300" : ""} ${
+                  error ? "bg-destructive/10 border-destructive" : ""
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <input
+                  type="file"
+                  accept=".html"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                />
 
-            <div className="flex flex-col items-center justify-center space-y-4">
-              {isSuccess ? (
-                <CheckCircle2 className="h-12 w-12 text-green-500" />
-              ) : error ? (
-                <AlertCircle className="h-12 w-12 text-destructive" />
-              ) : isAiProcessing ? (
-                <div className="text-primary flex flex-col items-center">
-                  <Sparkles className="h-12 w-12 mb-2 animate-pulse" />
-                  <p>AI is analyzing your bookmarks...</p>
-                  <div className="w-full max-w-xs mt-4">
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {Math.round(progress)}% complete
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  {isSuccess ? (
+                    <CheckCircle2 className="h-12 w-12 text-green-500" />
+                  ) : error ? (
+                    <AlertCircle className="h-12 w-12 text-destructive" />
+                  ) : isAiProcessing ? (
+                    <div className="text-primary flex flex-col items-center">
+                      <Sparkles className="h-12 w-12 mb-2 animate-pulse" />
+                      <p>AI is analyzing your bookmarks...</p>
+                      <div className="w-full max-w-xs mt-4">
+                        <Progress value={progress} className="h-2" />
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {Math.round(progress)}% complete
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <Upload className="h-12 w-12 text-primary/70" />
+                  )}
+
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-lg">
+                      {isSuccess
+                        ? "Import Successful"
+                        : error
+                        ? "Import Failed"
+                        : isAiProcessing
+                        ? "AI Processing"
+                        : "Import Bookmarks"}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {isSuccess
+                        ? "Your bookmarks have been imported"
+                        : error
+                        ? error
+                        : isAiProcessing
+                        ? "Adding descriptions and intelligent categorization"
+                        : useAI
+                        ? "Drag and drop your bookmarks.html file here for AI-enhanced import"
+                        : "Drag and drop your bookmarks.html file here"}
                     </p>
                   </div>
-                </div>
-              ) : (
-                <Upload className="h-12 w-12 text-primary/70" />
-              )}
 
-              <div className="space-y-2">
-                <h3 className="font-medium text-lg">
-                  {isSuccess
-                    ? "Import Successful"
-                    : error
-                    ? "Import Failed"
-                    : isAiProcessing
-                    ? "AI Processing"
-                    : "Import Bookmarks"}
-                </h3>
-                <p className="text-muted-foreground">
-                  {isSuccess
-                    ? "Your bookmarks have been imported"
-                    : error
-                    ? error
-                    : isAiProcessing
-                    ? "Adding descriptions and intelligent categorization"
-                    : useAI
-                    ? "Drag and drop your bookmarks.html file here for AI-enhanced import"
-                    : "Drag and drop your bookmarks.html file here"}
-                </p>
+                  {!isSuccess && !isProcessing && !isAiProcessing && (
+                    <Button
+                      onClick={handleButtonClick}
+                      className="flex items-center gap-2"
+                      variant="outline"
+                    >
+                      <FileUp className="h-4 w-4" />
+                      Select File
+                    </Button>
+                  )}
+
+                  {isProcessing && !isAiProcessing && (
+                    <div className="flex items-center gap-2 text-primary">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processing...
+                    </div>
+                  )}
+                </div>
               </div>
-
-              {!isSuccess && !isProcessing && !isAiProcessing && (
-                <Button
-                  onClick={handleButtonClick}
-                  className="flex items-center gap-2"
-                  variant="outline"
-                >
-                  <FileUp className="h-4 w-4" />
-                  Select File
-                </Button>
-              )}
-
-              {isProcessing && !isAiProcessing && (
-                <div className="flex items-center gap-2 text-primary">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing...
-                </div>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {useAI 
-              ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
-              : autoDedupe
-              ? "Smart deduplication will prevent duplicate bookmarks and normalize URLs"
-              : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
-          </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {useAI 
+                  ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
+                  : autoDedupe
+                  ? "Smart deduplication will prevent duplicate bookmarks and normalize URLs"
+                  : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
+              </p>
+            </TabsContent>
+            
+            <TabsContent value="browser">
+              <BrowserImport onImport={handleBrowserImport} />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
