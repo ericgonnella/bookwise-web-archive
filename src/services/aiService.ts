@@ -1,4 +1,5 @@
 import { Bookmark, BookmarkCategory } from "@/types";
+import html2canvas from 'html2canvas';
 
 // Categories for the AI to classify bookmarks into
 export const BOOKMARK_CATEGORIES = [
@@ -186,6 +187,45 @@ function guessCategory(url: string): BookmarkCategory {
   return "other";
 }
 
+async function captureScreenshot(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    
+    // Create an iframe to load the page
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '1200px';
+    iframe.style.height = '800px';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-9999px';
+    iframe.style.left = '-9999px';
+    document.body.appendChild(iframe);
+    
+    // Write the HTML content to the iframe
+    const iframeDoc = iframe.contentDocument;
+    if (iframeDoc) {
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+    }
+    
+    // Wait for images to load
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Capture screenshot
+    const canvas = await html2canvas(iframe.contentDocument?.body || document.createElement('div'));
+    const screenshot = canvas.toDataURL('image/jpeg', 0.5); // Use JPEG with 50% quality for smaller size
+    
+    // Clean up
+    document.body.removeChild(iframe);
+    
+    return screenshot;
+  } catch (error) {
+    console.error('Error capturing screenshot:', error);
+    return null;
+  }
+}
+
 /**
  * Process bookmarks with AI to enhance with descriptions and better categorization
  */
@@ -195,8 +235,12 @@ export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Boo
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
       
-      // Fetch page content
-      const pageData = await fetchPageContent(bookmark.url);
+      // Fetch page content and screenshot in parallel
+      const [pageData, screenshot] = await Promise.all([
+        fetchPageContent(bookmark.url),
+        captureScreenshot(bookmark.url)
+      ]);
+
       let description = generateDescriptionFromContent({
         ...pageData,
         url: bookmark.url
@@ -236,7 +280,8 @@ export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Boo
       return {
         ...bookmark,
         description,
-        tags: finalTags
+        tags: finalTags,
+        screenshot: screenshot || undefined
       };
     })
   );
