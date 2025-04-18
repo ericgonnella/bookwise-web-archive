@@ -1,5 +1,5 @@
-
 import html2canvas from 'html2canvas';
+import { Bookmark, BookmarkCategory } from "../types";
 
 // Categories for the AI to classify bookmarks into
 export const BOOKMARK_CATEGORIES = [
