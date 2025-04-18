@@ -51,24 +51,21 @@ export interface AuthState {
 }
 
 export type BookmarkCategory = 
+  | 'tech'
+  | 'programming'
   | 'tools'
-  | 'frameworks'
-  | 'libraries'
-  | 'documentation'
-  | 'tutorial'
-  | 'blog'
-  | 'article'
+  | 'streaming'
   | 'news'
-  | 'social'
-  | 'entertainment'
   | 'shopping'
-  | 'travel'
-  | 'finance'
+  | 'social'
   | 'education'
   | 'development'
-  | 'technology'
-  | 'health'
+  | 'documentation'
+  | 'entertainment'
+  | 'tutorial'
+  | 'article'
   | 'reference'
+  | 'community'
   | 'other';
 
 export interface BackupInfo {

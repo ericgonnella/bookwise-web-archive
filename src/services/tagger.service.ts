@@ -47,7 +47,7 @@ export const DOMAIN_OVERRIDES: Record<string, BookmarkCategory> = {
   "reactjs.org": "documentation",
   "vuejs.org": "documentation",
   "angular.io": "documentation",
-  "reddit.com": "community",
+  "reddit.com": "social",
   "news.ycombinator.com": "news",
   "coursera.org": "education",
   "udemy.com": "education",
@@ -71,9 +71,8 @@ export const KEYWORD_BUCKETS: Record<string, string[]> = {
   article: ["article", "blog post", "essay", "opinion", "analysis", "review"],
   entertainment: ["entertainment", "movie", "tv show", "series", "game", "music", "video"],
   reference: ["reference", "dictionary", "encyclopedia", "glossary", "cheatsheet"],
-  community: ["forum", "community", "discussion", "group", "network"],
+  social: ["forum", "community", "discussion", "group", "network", "social media", "facebook", "twitter", "instagram", "linkedin", "tiktok", "pinterest"],
   tech: ["technology", "tech", "ai", "machine learning", "blockchain", "cryptocurrency", "iot", "robotics"],
-  social: ["social media", "facebook", "twitter", "instagram", "linkedin", "tiktok", "pinterest"],
   shopping: ["shop", "store", "buy", "purchase", "product", "deal"],
 };
 
@@ -171,17 +170,17 @@ export function tagBookmark(
   
   // Final fallback to tech or other based on TLD
   if (domain.endsWith('.dev') || domain.endsWith('.io') || domain.endsWith('.tech')) {
-    return ['tech'];
+    return ['tech' as BookmarkCategory];
   } else if (domain.endsWith('.edu') || url.includes('learn') || url.includes('course')) {
-    return ['education'];
+    return ['education' as BookmarkCategory];
   } else if (url.includes('blog') || title.toLowerCase().includes('blog')) {
-    return ['article'];
+    return ['article' as BookmarkCategory];
   } else if (url.includes('forum') || url.includes('community')) {
-    return ['community'];
+    return ['social' as BookmarkCategory];
   } else if (url.includes('shop') || url.includes('store')) {
-    return ['shopping'];
+    return ['shopping' as BookmarkCategory];
   }
   
   // Absolute fallback
-  return ['other'];
+  return ['other' as BookmarkCategory];
 }
