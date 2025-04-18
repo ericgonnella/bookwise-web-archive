@@ -41,3 +41,24 @@ export interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
 }
+
+export type BookmarkCategory = 
+  | 'tools'
+  | 'frameworks'
+  | 'libraries'
+  | 'documentation'
+  | 'tutorial'
+  | 'blog'
+  | 'article'
+  | 'news'
+  | 'social'
+  | 'entertainment'
+  | 'shopping'
+  | 'travel'
+  | 'finance'
+  | 'education'
+  | 'development'
+  | 'technology'
+  | 'health'
+  | 'reference'
+  | 'other';

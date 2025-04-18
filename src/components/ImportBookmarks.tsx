@@ -1,9 +1,13 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2 } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
 import { Bookmark } from "../types";
 import { useToast } from "@/hooks/use-toast";
+import { enhanceBookmarksWithAI } from "@/services/aiService";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
@@ -12,8 +16,10 @@ interface ImportBookmarksProps {
 const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useAI, setUseAI] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [showImport, setShowImport] = useState(true);
@@ -38,10 +44,36 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
       }
 
       const content = await file.text();
-      const parsedBookmarks = parseBookmarksHtml(content);
+      let parsedBookmarks = parseBookmarksHtml(content);
 
       if (parsedBookmarks.length === 0) {
         throw new Error("No bookmarks found in the HTML file");
+      }
+
+      // Use AI to enhance bookmarks if enabled
+      if (useAI) {
+        setIsAiProcessing(true);
+        toast({
+          title: "AI Processing",
+          description: `Analyzing ${parsedBookmarks.length} bookmarks with AI...`,
+        });
+        
+        try {
+          parsedBookmarks = await enhanceBookmarksWithAI(parsedBookmarks);
+          toast({
+            title: "AI Analysis Complete",
+            description: `Enhanced ${parsedBookmarks.length} bookmarks with AI descriptions and categories`,
+          });
+        } catch (aiError) {
+          toast({
+            variant: "destructive",
+            title: "AI Processing Failed",
+            description: "Could not enhance bookmarks with AI. Using basic categorization instead.",
+          });
+          console.error("AI processing error:", aiError);
+        } finally {
+          setIsAiProcessing(false);
+        }
       }
 
       onImport(parsedBookmarks);
@@ -100,9 +132,21 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
 
   return (
     <div className="mb-6">
+      <div className="flex items-center justify-end mb-2 gap-2">
+        <Switch 
+          id="use-ai" 
+          checked={useAI} 
+          onCheckedChange={setUseAI} 
+        />
+        <Label htmlFor="use-ai" className="flex items-center gap-1">
+          <Sparkles className="h-4 w-4 text-amber-500" />
+          AI-Enhanced Import
+        </Label>
+      </div>
+      
       <div
         className={`p-6 border-2 border-dashed rounded-lg text-center transition-all ${
-          isDragging ? "drag-active" : "border-border"
+          isDragging ? "border-primary bg-primary/5" : "border-border"
         } ${isSuccess ? "bg-green-50 border-green-300" : ""} ${
           error ? "bg-red-50 border-red-300" : ""
         }`}
@@ -123,6 +167,14 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
             <CheckCircle2 className="h-12 w-12 text-green-500" />
           ) : error ? (
             <AlertCircle className="h-12 w-12 text-red-500" />
+          ) : isAiProcessing ? (
+            <div className="text-primary animate-pulse flex flex-col items-center">
+              <Sparkles className="h-12 w-12 mb-2" />
+              <p>AI is analyzing your bookmarks...</p>
+              <div className="mt-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            </div>
           ) : (
             <Upload className="h-12 w-12 text-primary/70" />
           )}
@@ -133,6 +185,8 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
                 ? "Import Successful"
                 : error
                 ? "Import Failed"
+                : isAiProcessing
+                ? "AI Processing"
                 : "Import Bookmarks"}
             </h3>
             <p className="text-muted-foreground">
@@ -140,11 +194,15 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
                 ? "Your bookmarks have been imported"
                 : error
                 ? error
+                : isAiProcessing
+                ? "Adding descriptions and intelligent categorization"
+                : useAI
+                ? "Drag and drop your bookmarks.html file here for AI-enhanced import"
                 : "Drag and drop your bookmarks.html file here"}
             </p>
           </div>
 
-          {!isSuccess && !isProcessing && (
+          {!isSuccess && !isProcessing && !isAiProcessing && (
             <Button
               onClick={handleButtonClick}
               className="flex items-center gap-2"
@@ -155,13 +213,15 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
             </Button>
           )}
 
-          {isProcessing && (
+          {isProcessing && !isAiProcessing && (
             <div className="animate-pulse text-primary">Processing...</div>
           )}
         </div>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
-        You can export bookmarks from Chrome, Firefox, Safari, or Edge
+        {useAI 
+          ? "AI will analyze your bookmarks to provide descriptions and better categorization" 
+          : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
       </p>
     </div>
   );
