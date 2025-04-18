@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Layout from "@/components/Layout";
 import BookmarkGrid from "@/components/BookmarkGrid";
 import BookmarkList from "@/components/BookmarkList";
@@ -10,9 +10,10 @@ import EmptyState from "@/components/EmptyState";
 import useBookmarks from "@/hooks/useBookmarks";
 import { ViewMode } from "@/types";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Import, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Import, SlidersHorizontal, Wifi, WifiOff } from "lucide-react";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 const Index = () => {
   // Get user information from auth context
@@ -26,6 +27,8 @@ const Index = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Import section ref for scrolling
   const importSectionRef = useRef<HTMLDivElement>(null);
+  // Online status state
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   
   // Get bookmarks and related functions from the custom hook
   const {
@@ -39,8 +42,39 @@ const Index = () => {
     updateFilters,
     toggleTagFilter,
     clearFilters,
-    setSortOptions
+    setSortOptions,
+    archiveBookmark,
+    remindBookmark,
+    handleBulkAction
   } = useBookmarks();
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast({
+        title: "Back Online",
+        description: "You're connected to the internet again",
+      });
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({
+        title: "Offline Mode",
+        description: "You can still view your bookmarks",
+        variant: "default"
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   
   // Scroll to import section
   const scrollToImport = () => {
@@ -63,6 +97,21 @@ const Index = () => {
   return (
     <Layout>
       <div className="container py-6">
+        {/* Online/Offline indicator */}
+        <div className={`mb-3 flex items-center gap-2 text-sm ${isOnline ? 'text-green-500' : 'text-amber-500'}`}>
+          {isOnline ? (
+            <>
+              <Wifi className="h-4 w-4" />
+              <span>Online</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-4 w-4" />
+              <span>Offline Mode</span>
+            </>
+          )}
+        </div>
+        
         {/* Welcome message */}
         {currentUser && (
           <div className="bg-primary/10 rounded-lg p-4 mb-6 flex items-center">
@@ -154,6 +203,9 @@ const Index = () => {
                 bookmarks={bookmarks} 
                 onLike={likeBookmark} 
                 onDelete={deleteBookmark} 
+                onArchive={archiveBookmark}
+                onRemind={remindBookmark}
+                onBulkAction={handleBulkAction}
               />
             ) : (
               <BookmarkList 

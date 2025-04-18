@@ -9,7 +9,8 @@ import {
   Download, 
   Archive, 
   X,
-  Clock 
+  Clock,
+  Share2 
 } from "lucide-react";
 
 interface BulkToolbarProps {
@@ -87,6 +88,16 @@ const BulkToolbar: React.FC<BulkToolbarProps> = ({
           disabled={selectedCount === 0}
         >
           <Download className="h-4 w-4 mr-1" /> Export
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8"
+          onClick={() => onBulkAction('share')}
+          disabled={selectedCount === 0}
+        >
+          <Share2 className="h-4 w-4 mr-1" /> Share
         </Button>
 
         <Button

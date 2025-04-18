@@ -2,8 +2,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { Bookmark, FilterOptions, SortOption, SortDirection, Tag } from "../types";
 import { getSampleBookmarks } from "../lib/bookmarkParser";
+import { useToast } from "./use-toast";
+
+const STORAGE_KEY = "bookwise_bookmarks_data";
 
 const useBookmarks = () => {
+  const { toast } = useToast();
+  
   // State for bookmarks
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   
@@ -15,11 +20,47 @@ const useBookmarks = () => {
     sortDirection: "desc"
   });
 
-  // Load sample bookmarks on mount
+  // Load bookmarks from localStorage or use sample data
   useEffect(() => {
-    const sampleBookmarks = getSampleBookmarks();
-    setBookmarks(sampleBookmarks);
+    const loadBookmarks = () => {
+      try {
+        const storedBookmarks = localStorage.getItem(STORAGE_KEY);
+        if (storedBookmarks) {
+          const parsedBookmarks = JSON.parse(storedBookmarks);
+          
+          // Convert date strings back to Date objects
+          const processedBookmarks = parsedBookmarks.map((bookmark: any) => ({
+            ...bookmark,
+            dateAdded: new Date(bookmark.dateAdded),
+            lastViewedAt: bookmark.lastViewedAt ? new Date(bookmark.lastViewedAt) : undefined,
+            remindAt: bookmark.remindAt ? new Date(bookmark.remindAt) : undefined
+          }));
+          
+          setBookmarks(processedBookmarks);
+          return;
+        }
+      } catch (error) {
+        console.error("Error loading bookmarks from storage:", error);
+      }
+      
+      // Fallback to sample data
+      const sampleBookmarks = getSampleBookmarks();
+      setBookmarks(sampleBookmarks);
+    };
+    
+    loadBookmarks();
   }, []);
+  
+  // Save bookmarks to localStorage whenever they change
+  useEffect(() => {
+    if (bookmarks.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
+      } catch (error) {
+        console.error("Error saving bookmarks to storage:", error);
+      }
+    }
+  }, [bookmarks]);
 
   // Add new bookmarks
   const addBookmarks = (newBookmarks: Bookmark[]) => {
@@ -65,6 +106,10 @@ const useBookmarks = () => {
   // Delete a bookmark
   const deleteBookmark = (id: string) => {
     setBookmarks(prev => prev.filter(bookmark => bookmark.id !== id));
+    toast({
+      title: "Bookmark Deleted",
+      description: "The bookmark has been removed",
+    });
   };
 
   // Like/dislike a bookmark
@@ -81,6 +126,99 @@ const useBookmarks = () => {
         return bookmark;
       })
     );
+  };
+  
+  // Archive a bookmark
+  const archiveBookmark = (id: string) => {
+    setBookmarks(prev =>
+      prev.map(bookmark => {
+        if (bookmark.id === id) {
+          const isArchived = !bookmark.archived;
+          toast({
+            title: isArchived ? "Bookmark Archived" : "Bookmark Unarchived",
+            description: isArchived ? 
+              "The bookmark has been moved to archives" : 
+              "The bookmark has been restored"
+          });
+          return { ...bookmark, archived: isArchived };
+        }
+        return bookmark;
+      })
+    );
+  };
+  
+  // Set reminder for a bookmark
+  const remindBookmark = (id: string) => {
+    // Set reminder for 7 days from now
+    const remindDate = new Date();
+    remindDate.setDate(remindDate.getDate() + 7);
+    
+    setBookmarks(prev =>
+      prev.map(bookmark => {
+        if (bookmark.id === id) {
+          toast({
+            title: "Reminder Set",
+            description: "You'll be reminded about this bookmark in 7 days"
+          });
+          return { ...bookmark, remindAt: remindDate };
+        }
+        return bookmark;
+      })
+    );
+  };
+
+  // Handle bulk actions on multiple bookmarks
+  const handleBulkAction = (action: string, ids: string[]) => {
+    switch (action) {
+      case 'delete':
+        setBookmarks(prev => prev.filter(bookmark => !ids.includes(bookmark.id)));
+        toast({
+          title: "Bookmarks Deleted",
+          description: `Deleted ${ids.length} bookmarks`
+        });
+        break;
+        
+      case 'archive':
+        setBookmarks(prev =>
+          prev.map(bookmark => {
+            if (ids.includes(bookmark.id)) {
+              return { ...bookmark, archived: true };
+            }
+            return bookmark;
+          })
+        );
+        toast({
+          title: "Bookmarks Archived",
+          description: `Archived ${ids.length} bookmarks`
+        });
+        break;
+        
+      case 'remind':
+        const remindDate = new Date();
+        remindDate.setDate(remindDate.getDate() + 7);
+        
+        setBookmarks(prev =>
+          prev.map(bookmark => {
+            if (ids.includes(bookmark.id)) {
+              return { ...bookmark, remindAt: remindDate };
+            }
+            return bookmark;
+          })
+        );
+        toast({
+          title: "Reminders Set",
+          description: `Set reminders for ${ids.length} bookmarks`
+        });
+        break;
+        
+      case 'tag':
+        // In a real app, this would open a tag selection dialog
+        toast({
+          title: "Tag Feature",
+          description: "Tag selection dialog would appear here",
+        });
+        break;
+    }
   };
 
   // Update filter options
@@ -186,7 +324,10 @@ const useBookmarks = () => {
     updateFilters,
     toggleTagFilter,
     clearFilters,
-    setSortOptions
+    setSortOptions,
+    archiveBookmark,
+    remindBookmark,
+    handleBulkAction
   };
 };
 
