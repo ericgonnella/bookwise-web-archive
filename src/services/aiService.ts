@@ -284,53 +284,6 @@ function guessCategory(url: string): BookmarkCategory {
   return "other";
 }
 
-// Generate a placeholder image with site domain if we can't get a real screenshot
-function generatePlaceholderImage(domain: string, category: BookmarkCategory = 'other'): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = 500;
-  canvas.height = 300;
-  const ctx = canvas.getContext('2d');
-  
-  if (ctx) {
-    // Use category color for background
-    const bgColor = getCategoryColor(category);
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Add a subtle pattern
-    ctx.strokeStyle = `${bgColor}80`; // 50% opacity
-    for (let i = 0; i < canvas.width; i += 20) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i, canvas.height);
-      ctx.stroke();
-    }
-    
-    // Draw domain name
-    ctx.font = 'bold 28px system-ui';
-    ctx.fillStyle = category === 'documentation' || category === 'tutorial' ? '#333333' : '#FFFFFF';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    // Handle long domain names
-    const maxWidth = canvas.width - 40;
-    let fontSize = 28;
-    while (ctx.measureText(domain).width > maxWidth && fontSize > 16) {
-      fontSize--;
-      ctx.font = `bold ${fontSize}px system-ui`;
-    }
-    
-    ctx.fillText(domain, canvas.width / 2, canvas.height / 2);
-    
-    // Draw category label
-    ctx.font = '16px system-ui';
-    ctx.fillStyle = category === 'documentation' || category === 'tutorial' ? '#666666' : '#FFFFFF';
-    ctx.fillText(category.toUpperCase(), canvas.width / 2, canvas.height / 2 + 40);
-  }
-  
-  return canvas.toDataURL('image/jpeg', 0.8);
-}
-
 async function captureScreenshot(url: string, category: BookmarkCategory = 'other'): Promise<string | null> {
   try {
     const domain = extractDomainFromUrl(url);
