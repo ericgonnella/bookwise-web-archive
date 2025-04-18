@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info } from "lucide-react";
+import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info, CleanIcon } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
 import { Progress } from "@/components/ui/progress";
 import { Bookmark } from "../types";
@@ -14,9 +13,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
+  existingBookmarks?: Bookmark[];
 }
 
-const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
+const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBookmarks = [] }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
@@ -24,6 +24,9 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useAI, setUseAI] = useState(true);
+  const [autoDedupe, setAutoDedupe] = useState(true);
+  const [mergeMetadata, setMergeMetadata] = useState(true);
+  const [duplicatesFound, setDuplicatesFound] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [showImport, setShowImport] = useState(true);
@@ -37,11 +40,48 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
     setIsDragging(false);
   };
 
+  const normalizeUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      let normalizedUrl = urlObj.origin + urlObj.pathname.replace(/\/$/, '');
+      
+      const params = new URLSearchParams(urlObj.search);
+      const essentialParams = new URLSearchParams();
+      
+      params.forEach((value, key) => {
+        if (!key.startsWith('utm_') && key !== 'source' && key !== 'ref') {
+          essentialParams.append(key, value);
+        }
+      });
+      
+      const essentialSearch = essentialParams.toString();
+      if (essentialSearch) {
+        normalizedUrl += '?' + essentialSearch;
+      }
+      
+      if (urlObj.hash) {
+        normalizedUrl += urlObj.hash;
+      }
+      
+      return normalizedUrl.toLowerCase();
+    } catch (error) {
+      return url.toLowerCase();
+    }
+  };
+
+  const cleanupTitle = (title: string): string => {
+    return title
+      .replace(/\s[|\-–—]\s.*$/, '')
+      .replace(/\s*\(.*?\)\s*$/, '')
+      .trim();
+  };
+
   const processFile = async (file: File) => {
     setIsProcessing(true);
     setError(null);
     setIsSuccess(false);
     setProgress(0);
+    setDuplicatesFound(0);
 
     try {
       if (file.type !== "text/html" && !file.name.endsWith(".html")) {
@@ -55,8 +95,62 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
         throw new Error("No bookmarks found in the HTML file");
       }
 
-      // Use AI to enhance bookmarks if enabled
-      if (useAI) {
+      parsedBookmarks = parsedBookmarks.map(bookmark => ({
+        ...bookmark,
+        title: cleanupTitle(bookmark.title)
+      }));
+      
+      if (autoDedupe && existingBookmarks.length > 0) {
+        const normalizedExistingUrls = new Map<string, Bookmark>();
+        existingBookmarks.forEach(bookmark => {
+          normalizedExistingUrls.set(normalizeUrl(bookmark.url), bookmark);
+        });
+        
+        const uniqueBookmarks: Bookmark[] = [];
+        const dupes: Bookmark[] = [];
+        
+        parsedBookmarks.forEach(newBookmark => {
+          const normalizedUrl = normalizeUrl(newBookmark.url);
+          const existingBookmark = normalizedExistingUrls.get(normalizedUrl);
+          
+          if (existingBookmark) {
+            dupes.push(newBookmark);
+            
+            if (mergeMetadata) {
+              const combinedTags = [...new Set([
+                ...existingBookmark.tags, 
+                ...newBookmark.tags
+              ])];
+              
+              const latestDate = new Date(newBookmark.dateAdded) > new Date(existingBookmark.dateAdded) 
+                ? newBookmark.dateAdded 
+                : existingBookmark.dateAdded;
+              
+              Object.assign(existingBookmark, {
+                tags: combinedTags,
+                dateAdded: latestDate,
+                description: existingBookmark.description || newBookmark.description
+              });
+            }
+          } else {
+            uniqueBookmarks.push(newBookmark);
+          }
+        });
+        
+        setDuplicatesFound(dupes.length);
+        parsedBookmarks = uniqueBookmarks;
+        
+        if (dupes.length > 0) {
+          toast({
+            title: `${dupes.length} duplicate bookmarks detected`,
+            description: mergeMetadata 
+              ? "Metadata was merged with existing bookmarks" 
+              : "Duplicates were skipped",
+          });
+        }
+      }
+
+      if (useAI && parsedBookmarks.length > 0) {
         setIsAiProcessing(true);
         toast({
           title: "AI Processing",
@@ -66,7 +160,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
         try {
           parsedBookmarks = await enhanceBookmarksWithAI(
             parsedBookmarks,
-            5, // Process 5 bookmarks at a time
+            5,
             (processed, total) => {
               const progressPercent = (processed / total) * 100;
               setProgress(progressPercent);
@@ -84,19 +178,28 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
             title: "AI Processing Failed",
             description: "Could not enhance bookmarks with AI. Using basic categorization instead.",
           });
-          // Continue with the basic parsed bookmarks even if AI enhancement fails
         } finally {
           setIsAiProcessing(false);
         }
       }
 
-      // Always import the bookmarks, even if AI processing failed
-      onImport(parsedBookmarks);
-      setIsSuccess(true);
-      toast({
-        title: "Import successful",
-        description: `${parsedBookmarks.length} bookmarks imported`,
-      });
+      if (parsedBookmarks.length > 0) {
+        onImport(parsedBookmarks);
+        setIsSuccess(true);
+        toast({
+          title: "Import successful",
+          description: `${parsedBookmarks.length} bookmarks imported${
+            duplicatesFound > 0 ? `, ${duplicatesFound} duplicates ${mergeMetadata ? 'merged' : 'skipped'}` : ''
+          }`,
+        });
+      } else {
+        toast({
+          variant: "default",
+          title: "No new bookmarks",
+          description: "All bookmarks already exist in your collection."
+        });
+        setIsSuccess(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to import bookmarks");
       toast({
@@ -135,7 +238,6 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isSuccess) {
-      // Delay hiding the import section to allow user to see success message
       timer = setTimeout(() => {
         setShowImport(false);
       }, 3000);
@@ -145,7 +247,6 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
     };
   }, [isSuccess]);
 
-  // Don't render the component if showImport is false
   if (!showImport) return null;
 
   return (
@@ -153,16 +254,43 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col space-y-4">
-            <div className="flex items-center justify-end gap-2">
-              <Switch 
-                id="use-ai" 
-                checked={useAI} 
-                onCheckedChange={setUseAI} 
-              />
-              <Label htmlFor="use-ai" className="flex items-center gap-1">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                AI-Enhanced Import
-              </Label>
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center justify-end gap-2">
+                <Switch 
+                  id="use-ai" 
+                  checked={useAI} 
+                  onCheckedChange={setUseAI} 
+                />
+                <Label htmlFor="use-ai" className="flex items-center gap-1">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  AI-Enhanced Import
+                </Label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <Switch 
+                  id="auto-dedupe" 
+                  checked={autoDedupe} 
+                  onCheckedChange={setAutoDedupe} 
+                />
+                <Label htmlFor="auto-dedupe" className="flex items-center gap-1">
+                  <CleanIcon className="h-4 w-4 text-blue-500" />
+                  Smart Deduplication
+                </Label>
+              </div>
+
+              {autoDedupe && (
+                <div className="flex items-center justify-end gap-2">
+                  <Switch 
+                    id="merge-metadata" 
+                    checked={mergeMetadata} 
+                    onCheckedChange={setMergeMetadata} 
+                  />
+                  <Label htmlFor="merge-metadata" className="text-xs text-muted-foreground">
+                    Merge tags & metadata
+                  </Label>
+                </div>
+              )}
             </div>
             
             {useAI && (
@@ -262,6 +390,8 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
           <p className="text-xs text-muted-foreground mt-2">
             {useAI 
               ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
+              : autoDedupe
+              ? "Smart deduplication will prevent duplicate bookmarks and normalize URLs"
               : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
           </p>
         </CardContent>

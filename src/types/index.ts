@@ -10,6 +10,13 @@ export interface Bookmark {
   screenshot?: string;
   likes: number;
   dislikes: number;
+  lastViewedAt?: Date;
+  archived?: boolean;
+  remindAt?: Date;
+  analytics?: { 
+    views: number; 
+    reactions: number;
+  };
 }
 
 export interface Tag {
@@ -20,7 +27,7 @@ export interface Tag {
 
 export type ViewMode = 'grid' | 'list';
 
-export type SortOption = 'dateAdded' | 'title' | 'likes';
+export type SortOption = 'dateAdded' | 'title' | 'likes' | 'views';
 export type SortDirection = 'asc' | 'desc';
 
 export interface FilterOptions {
@@ -28,6 +35,7 @@ export interface FilterOptions {
   tags: string[];
   sortBy: SortOption;
   sortDirection: SortDirection;
+  archived?: boolean;
 }
 
 export interface User {
@@ -62,3 +70,10 @@ export type BookmarkCategory =
   | 'health'
   | 'reference'
   | 'other';
+
+export interface BackupInfo {
+  id: string;
+  createdAt: Date;
+  bookmarkCount: number;
+  size: string;
+}
