@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info, CleanIcon } from "lucide-react";
+import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info, FilterIcon } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
 import { Progress } from "@/components/ui/progress";
 import { Bookmark } from "../types";
@@ -274,7 +274,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                   onCheckedChange={setAutoDedupe} 
                 />
                 <Label htmlFor="auto-dedupe" className="flex items-center gap-1">
-                  <CleanIcon className="h-4 w-4 text-blue-500" />
+                  <FilterIcon className="h-4 w-4 text-blue-500" />
                   Smart Deduplication
                 </Label>
               </div>
