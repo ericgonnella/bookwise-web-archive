@@ -1,5 +1,5 @@
-import { Bookmark } from "../types";
 import { v4 as uuidv4 } from "uuid";
+import { Bookmark } from "../types";
 
 /**
  * Parse bookmarks HTML file into structured bookmark objects
@@ -82,59 +82,42 @@ export function extractDomainFromUrl(url: string): string {
 }
 
 /**
- * Generate tags based on the URL
+ * Generate tags based on the URL and content
  */
 function generateTagsFromUrl(url: string): string[] {
   const tags: string[] = [];
   const lowercase = url.toLowerCase();
   
-  // Common domain categories
-  if (lowercase.includes('github') || lowercase.includes('stackoverflow') || 
-      lowercase.includes('dev.to') || lowercase.includes('medium.com')) {
-    tags.push('tech');
-  }
-  
-  if (lowercase.includes('news') || lowercase.includes('bbc') || 
-      lowercase.includes('cnn') || lowercase.includes('nytimes')) {
-    tags.push('news');
-  }
-  
-  if (lowercase.includes('recipe') || lowercase.includes('food') || 
-      lowercase.includes('cooking') || lowercase.includes('allrecipes')) {
-    tags.push('recipe');
-  }
-  
-  if (lowercase.includes('facebook') || lowercase.includes('twitter') || 
-      lowercase.includes('instagram') || lowercase.includes('linkedin')) {
-    tags.push('social');
-  }
-  
-  if (lowercase.includes('finance') || lowercase.includes('money') || 
-      lowercase.includes('invest') || lowercase.includes('bank')) {
-    tags.push('finance');
-  }
-  
-  if (lowercase.includes('learn') || lowercase.includes('course') || 
-      lowercase.includes('tutorial') || lowercase.includes('education')) {
-    tags.push('education');
-  }
-  
-  if (lowercase.includes('youtube') || lowercase.includes('netflix') || 
-      lowercase.includes('hulu') || lowercase.includes('movie')) {
-    tags.push('entertainment');
-  }
-  
-  if (lowercase.includes('travel') || lowercase.includes('vacation') || 
-      lowercase.includes('hotel') || lowercase.includes('booking')) {
-    tags.push('travel');
-  }
-  
-  // If no category was detected, add a default tag
+  // Define category rules with multiple related terms
+  const categories = {
+    development: ['github.com', 'stackoverflow.com', 'dev.to', 'gitlab.com', 'bitbucket.org', 'npm', 'github', 'stackoverflow'],
+    news: ['news', 'bbc.com', 'reuters.com', 'cnn.com', 'nytimes.com', 'bloomberg.com'],
+    food: ['recipe', 'food', 'cooking', 'allrecipes.com', 'foodnetwork.com', 'epicurious.com'],
+    social: ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com', 'tiktok.com'],
+    finance: ['finance', 'investing.com', 'marketwatch.com', 'bloomberg.com', 'yahoo.com/finance'],
+    education: ['coursera.org', 'udemy.com', 'edx.org', 'khan academy', 'educational'],
+    entertainment: ['youtube.com', 'netflix.com', 'hulu.com', 'spotify.com', 'disney'],
+    shopping: ['amazon.com', 'ebay.com', 'etsy.com', 'shop', 'store'],
+    travel: ['booking.com', 'airbnb.com', 'expedia.com', 'tripadvisor.com', 'travel']
+  };
+
+  // Check URL against each category
+  Object.entries(categories).forEach(([category, terms]) => {
+    if (terms.some(term => lowercase.includes(term))) {
+      tags.push(category);
+    }
+  });
+
+  // Only add domain as tag if no other tags were found and it's a known service
   if (tags.length === 0) {
     const domain = extractDomainFromUrl(url);
-    tags.push(domain.split('.')[0]); // Use the domain name as a tag
+    const mainDomain = domain.split('.')[0];
+    // Only add domain tag if it's longer than 3 characters to avoid generic tags
+    if (mainDomain.length > 3) {
+      tags.push(mainDomain);
+    }
   }
-  
+
   return tags;
 }
 

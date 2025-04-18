@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
@@ -17,6 +16,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [showImport, setShowImport] = useState(true);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -59,10 +59,6 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
       });
     } finally {
       setIsProcessing(false);
-      // Reset success state after 3 seconds
-      if (isSuccess) {
-        setTimeout(() => setIsSuccess(false), 3000);
-      }
     }
   };
 
@@ -88,6 +84,19 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
       fileInputRef.current.click();
     }
   };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isSuccess) {
+      timer = setTimeout(() => {
+        setIsSuccess(false);
+        setShowImport(false);
+      }, 3000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isSuccess]);
 
   return (
     <div className="mb-6">

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Bookmark } from "../types";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -32,7 +31,12 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
   const initials = domain.substring(0, 2).toUpperCase();
   
   return (
-    <Card className="bookmark-card h-full flex flex-col">
+    <Card className="bookmark-card h-full flex flex-col group relative">
+      <div 
+        className="absolute inset-0 cursor-pointer z-10"
+        onClick={() => window.open(bookmark.url, "_blank")}
+      />
+      
       <div className="relative aspect-video w-full overflow-hidden rounded-t-lg">
         {bookmark.screenshot ? (
           <img 
@@ -66,7 +70,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
         </div>
       </div>
       
-      <CardContent className="flex-grow p-4">
+      <CardContent className="flex-grow p-4 relative z-20">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-medium text-lg leading-tight line-clamp-2">{bookmark.title}</h3>
         </div>
@@ -86,7 +90,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
         </div>
       </CardContent>
       
-      <CardFooter className="pt-0 pb-4 px-4 flex items-center justify-between">
+      <CardFooter className="pt-0 pb-4 px-4 flex items-center justify-between relative z-20">
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <span>{formattedDate}</span>
         </div>
@@ -95,7 +99,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => onLike(bookmark.id, true)} className="h-8 w-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLike(bookmark.id, true);
+                  }}
+                  className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                >
                   <ThumbsUp className="h-4 w-4" />
                   {bookmark.likes > 0 && <span className="ml-1 text-xs">{bookmark.likes}</span>}
                 </Button>
@@ -105,7 +117,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" onClick={() => onLike(bookmark.id, false)} className="h-8 w-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLike(bookmark.id, false);
+                  }}
+                  className="h-8 w-8 hover:bg-primary/10 hover:text-primary transition-colors"
+                >
                   <ThumbsDown className="h-4 w-4" />
                   {bookmark.dislikes > 0 && <span className="ml-1 text-xs">{bookmark.dislikes}</span>}
                 </Button>
@@ -115,16 +135,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(bookmark.url, "_blank")}>
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Visit URL</TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => onDelete(bookmark.id)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(bookmark.id);
+                  }}
+                  className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
