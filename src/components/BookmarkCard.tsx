@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Bookmark } from "../types";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -30,13 +31,15 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
   const domainColor = getDomainColor(domain);
   const initials = domain.substring(0, 2).toUpperCase();
   
+  const handleCardClick = () => {
+    window.open(bookmark.url, "_blank");
+  };
+  
   return (
-    <Card className="bookmark-card h-full flex flex-col group relative">
-      <div 
-        className="absolute inset-0 cursor-pointer z-10"
-        onClick={() => window.open(bookmark.url, "_blank")}
-      />
-      
+    <Card 
+      className="bookmark-card h-full flex flex-col group relative cursor-pointer" 
+      onClick={handleCardClick}
+    >
       <div className="relative aspect-video w-full overflow-hidden rounded-t-lg">
         {bookmark.screenshot ? (
           <img 
@@ -157,3 +160,4 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark, onLike, onDelete 
 };
 
 export default BookmarkCard;
+
