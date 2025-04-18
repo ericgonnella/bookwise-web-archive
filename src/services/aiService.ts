@@ -1,5 +1,4 @@
 
-import { Bookmark, BookmarkCategory } from "@/types";
 import html2canvas from 'html2canvas';
 
 // Categories for the AI to classify bookmarks into
@@ -194,11 +193,45 @@ function guessCategory(url: string): BookmarkCategory {
 
 async function captureScreenshot(url: string): Promise<string | null> {
   try {
-    // CORS restrictions make this approach not work in most cases
-    // This is a simplified no-op version that won't block the import process
-    return null;
+    // Create a temporary iframe to load the page
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.top = '-10000px';  // Hide off-screen
+    iframe.style.width = '1024px';   // Standard width
+    iframe.style.height = '768px';   // Standard height
+    iframe.style.visibility = 'hidden';
+    
+    document.body.appendChild(iframe);
+    
+    // Wait for iframe to load
+    await new Promise((resolve) => {
+      iframe.onload = resolve;
+      iframe.src = url;
+    });
+
+    try {
+      // Try to access iframe content (may fail due to CORS)
+      const canvas = await html2canvas(iframe.contentDocument?.documentElement || iframe.contentDocument?.body, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        scale: 0.5, // Reduce size for thumbnails
+        logging: false,
+        width: 1024,
+        height: 768
+      });
+      
+      const screenshot = canvas.toDataURL('image/jpeg', 0.5);
+      return screenshot;
+    } catch (canvasError) {
+      console.error('Canvas generation failed:', canvasError);
+      return null;
+    } finally {
+      // Clean up
+      document.body.removeChild(iframe);
+    }
   } catch (error) {
-    console.error('Error capturing screenshot:', error);
+    console.error('Screenshot capture error:', error);
     return null;
   }
 }
@@ -291,7 +324,21 @@ export async function enhanceBookmarksWithAI(
   for (let i = 0; i < totalBookmarks; i += batchSize) {
     const batch = bookmarks.slice(i, i + batchSize);
     try {
-      const processedBatch = await processBatch(batch);
+      // Try to capture screenshots in parallel
+      const processedBatch = await Promise.all(
+        batch.map(async (bookmark) => {
+          const [processedBookmark, screenshot] = await Promise.all([
+            processBatch([bookmark]).then(results => results[0]),
+            captureScreenshot(bookmark.url)
+          ]);
+          
+          return {
+            ...processedBookmark,
+            screenshot: screenshot || undefined
+          };
+        })
+      );
+      
       enhancedBookmarks.push(...processedBatch);
     } catch (error) {
       console.error(`Error processing batch ${i}-${i+batchSize}:`, error);
