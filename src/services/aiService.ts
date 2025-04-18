@@ -39,69 +39,85 @@ async function fetchMetaDescription(url: string): Promise<string> {
   }
 }
 
-/**
- * Process bookmarks with AI to enhance with descriptions and better categorization
- */
-export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Bookmark[]> {
-  const enhancedBookmarks = await Promise.all(
-    bookmarks.map(async (bookmark) => {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
-      
-      const domain = extractDomainFromUrl(bookmark.url);
-      let description = await fetchMetaDescription(bookmark.url);
-      let primaryCategory: BookmarkCategory = "other";
-      let aiTags: string[] = [];
-      
-      // Fallback description if meta description fetch fails
-      if (!description) {
-        if (bookmark.url.includes("github.com")) {
-          description = "A GitHub repository for software development.";
-          primaryCategory = "development";
-          aiTags = ["development", "tools"];
-        } else if (bookmark.url.includes("stackoverflow.com")) {
-          description = "A programming Q&A resource.";
-          primaryCategory = "reference";
-          aiTags = ["development"];
-        } else if (bookmark.url.includes("react") || bookmark.url.includes("vue") || bookmark.url.includes("angular")) {
-          description = "Frontend framework related content.";
-          primaryCategory = "frameworks";
-          aiTags = ["development", "frameworks"];
-        } else if (bookmark.url.includes("npm") || bookmark.url.includes("yarn")) {
-          description = "Package management resource.";
-          primaryCategory = "tools";
-          aiTags = ["development"];
-        } else if (bookmark.url.includes("docs") || bookmark.url.includes("documentation")) {
-          description = `Documentation for ${domain}.`;
-          primaryCategory = "documentation";
-          aiTags = ["reference"];
-        } else if (bookmark.url.includes("tutorial") || bookmark.url.includes("learn")) {
-          description = `Educational content about ${domain}.`;
-          primaryCategory = "tutorial";
-          aiTags = ["education"];
-        } else {
-          description = `Website on ${domain}`;
-          primaryCategory = guessCategory(bookmark.url);
-          aiTags = [primaryCategory];
-        }
-      } else {
-        // Use AI categorization based on the meta description
-        primaryCategory = guessCategoryFromDescription(description);
-        aiTags = [primaryCategory];
-      }
-      
-      // Limit tags to maximum 3 most relevant ones
-      const finalTags = [...new Set([primaryCategory, ...aiTags.slice(0, 2)])];
-      
-      return {
-        ...bookmark,
-        description,
-        tags: finalTags
-      };
-    })
-  );
+async function fetchPageContent(url: string): Promise<{ 
+  title: string;
+  description: string;
+  content: string[];
+}> {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    
+    // Create a temporary DOM element to parse the HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Get meta description
+    const metaDescription = doc.querySelector('meta[name="description"]')?.getAttribute('content') ||
+                          doc.querySelector('meta[property="og:description"]')?.getAttribute('content');
+    
+    // Get main content
+    const mainContent = Array.from(doc.querySelectorAll('p, h1, h2, h3, article'))
+      .map(el => el.textContent?.trim())
+      .filter(text => text && text.length > 20) // Filter out short snippets
+      .slice(0, 5); // Take first 5 meaningful content blocks
+    
+    // Get title
+    const pageTitle = doc.querySelector('title')?.textContent || '';
+    
+    return {
+      title: pageTitle,
+      description: metaDescription || '',
+      content: mainContent
+    };
+  } catch (error) {
+    console.error('Error fetching page content:', error);
+    return {
+      title: '',
+      description: '',
+      content: []
+    };
+  }
+}
+
+function generateDescriptionFromContent(pageData: { 
+  title: string;
+  description: string;
+  content: string[];
+  url: string;
+}): string {
+  const domain = extractDomainFromUrl(pageData.url);
   
-  return enhancedBookmarks;
+  // If we have a meta description, use it
+  if (pageData.description) {
+    return pageData.description;
+  }
+  
+  // If we have meaningful content, create a description
+  if (pageData.content.length > 0) {
+    // Take the first meaningful content block and trim it
+    const mainContent = pageData.content[0]
+      .replace(/\s+/g, ' ')
+      .slice(0, 150);
+    
+    return `${mainContent}...`;
+  }
+  
+  // If we have at least a title, use it
+  if (pageData.title) {
+    return `Resource about ${pageData.title.replace(/\s+/g, ' ')}`;
+  }
+  
+  // Fallback with improved generic description
+  if (domain.includes("github")) {
+    return "A GitHub repository containing software development resources or code.";
+  } else if (domain.includes("docs") || domain.includes("documentation")) {
+    return `Technical documentation or guides from ${domain}.`;
+  } else if (domain.includes("blog") || domain.includes("medium")) {
+    return `Article or blog post from ${domain}.`;
+  }
+  
+  return `Resource from ${domain}`;
 }
 
 // Helper to extract domain from URL
@@ -168,4 +184,62 @@ function guessCategory(url: string): BookmarkCategory {
   }
   
   return "other";
+}
+
+/**
+ * Process bookmarks with AI to enhance with descriptions and better categorization
+ */
+export async function enhanceBookmarksWithAI(bookmarks: Bookmark[]): Promise<Bookmark[]> {
+  const enhancedBookmarks = await Promise.all(
+    bookmarks.map(async (bookmark) => {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+      
+      // Fetch page content
+      const pageData = await fetchPageContent(bookmark.url);
+      let description = generateDescriptionFromContent({
+        ...pageData,
+        url: bookmark.url
+      });
+      
+      let primaryCategory: BookmarkCategory = "other";
+      let aiTags: string[] = [];
+      
+      // Use content for better categorization
+      const contentText = [pageData.title, description, ...pageData.content]
+        .join(' ').toLowerCase();
+      
+      if (contentText.includes('framework') || contentText.includes('library')) {
+        primaryCategory = 'frameworks';
+        aiTags = ['development'];
+      } else if (contentText.includes('tool') || contentText.includes('utility')) {
+        primaryCategory = 'tools';
+        aiTags = ['development'];
+      } else if (contentText.includes('learn') || contentText.includes('tutorial')) {
+        primaryCategory = 'tutorial';
+        aiTags = ['education'];
+      } else if (contentText.includes('documentation') || contentText.includes('reference')) {
+        primaryCategory = 'documentation';
+        aiTags = ['reference'];
+      } else if (contentText.includes('blog') || contentText.includes('article')) {
+        primaryCategory = 'article';
+        aiTags = ['blog'];
+      } else {
+        // Fallback to URL-based categorization
+        primaryCategory = guessCategory(bookmark.url);
+        aiTags = [primaryCategory];
+      }
+      
+      // Limit tags to maximum 3 most relevant ones
+      const finalTags = [...new Set([primaryCategory, ...aiTags.slice(0, 2)])];
+      
+      return {
+        ...bookmark,
+        description,
+        tags: finalTags
+      };
+    })
+  );
+  
+  return enhancedBookmarks;
 }
