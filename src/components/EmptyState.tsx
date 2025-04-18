@@ -1,6 +1,5 @@
-
 import React from "react";
-import { Bookmark, Chrome, Firefox } from "lucide-react";
+import { Bookmark, Chrome, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getBrowserType } from "@/services/browserImport.service";
 
@@ -39,7 +38,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onImportClick, onBrowserImportC
             {browserType === 'chrome' ? (
               <Chrome className="h-4 w-4" />
             ) : (
-              <Firefox className="h-4 w-4" />
+              <Globe className="h-4 w-4" />
             )}
             Import from {browserType === 'chrome' ? 'Chrome' : 'Firefox'}
           </Button>

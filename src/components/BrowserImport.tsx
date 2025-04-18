@@ -1,7 +1,6 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Chrome, Firefox, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Chrome, Globe, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { 
   importFromBrowser,
   requestBrowserPermissions, 
@@ -105,7 +104,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
             ) : null}
             {browserType === 'firefox' || browserType === 'unknown' ? (
               <Button variant="outline" className="flex items-center gap-2" disabled>
-                <Firefox className="h-4 w-4" />
+                <Globe className="h-4 w-4" />
                 Firefox Add-on
               </Button>
             ) : null}
@@ -156,7 +155,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
             ) : browserType === 'chrome' ? (
               <Chrome className="h-4 w-4" />
             ) : (
-              <Firefox className="h-4 w-4" />
+              <Globe className="h-4 w-4" />
             )}
             {isLoading ? "Importing..." : `Import from ${browserType === 'chrome' ? 'Chrome' : 'Firefox'}`}
           </Button>
