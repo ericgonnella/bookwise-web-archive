@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas';
 import { Bookmark, BookmarkCategory } from "../types";
+import { tagBookmark } from "./tagger.service";
 
 // Categories for the AI to classify bookmarks into
 export const BOOKMARK_CATEGORIES = [
@@ -34,6 +35,11 @@ const CATEGORY_COLORS = {
   social: '#FFDEE2',     // Soft Pink
   entertainment: '#FEC6A1', // Soft Orange
   shopping: '#F97316',    // Bright Orange
+  programming: '#3B82F6', // Blue
+  tech: '#10B981',       // Green
+  education: '#8B5CF6',  // Purple
+  community: '#EC4899',  // Pink
+  reference: '#6366F1',  // Indigo
   other: '#8E9196'       // Neutral Gray
 } as const;
 
@@ -230,58 +236,16 @@ function extractDomainFromUrl(url: string): string {
   }
 }
 
-function guessCategoryFromDescription(description: string): BookmarkCategory {
-  const lowerDesc = description.toLowerCase();
-  
-  if (lowerDesc.includes('framework') || lowerDesc.includes('library')) {
-    return 'frameworks';
-  }
-  if (lowerDesc.includes('tool') || lowerDesc.includes('utility')) {
-    return 'tools';
-  }
-  if (lowerDesc.includes('learn') || lowerDesc.includes('tutorial') || lowerDesc.includes('guide')) {
-    return 'tutorial';
-  }
-  if (lowerDesc.includes('documentation') || lowerDesc.includes('docs') || lowerDesc.includes('reference')) {
-    return 'documentation';
-  }
-  if (lowerDesc.includes('blog') || lowerDesc.includes('article')) {
-    return 'article';
-  }
-  if (lowerDesc.includes('news')) {
-    return 'news';
-  }
-  if (lowerDesc.includes('shop') || lowerDesc.includes('store')) {
-    return 'shopping';
-  }
-  
-  return guessCategory(description);
+function guessCategoryFromDescription(description: string, url: string, title: string): BookmarkCategory {
+  // Use our new tagging service for better categorization
+  const tags = tagBookmark(url, title, description);
+  return tags[0]; // Return the first tag as the primary category
 }
 
-function guessCategory(url: string): BookmarkCategory {
-  const lowerUrl = url.toLowerCase();
-  
-  if (lowerUrl.includes("github") || lowerUrl.includes("gitlab") || 
-      lowerUrl.includes("code") || lowerUrl.includes("dev")) {
-    return "development";
-  }
-  if (lowerUrl.includes("learn") || lowerUrl.includes("course") || 
-      lowerUrl.includes("tutorial")) {
-    return "tutorial";
-  }
-  if (lowerUrl.includes("shop") || lowerUrl.includes("buy") || 
-      lowerUrl.includes("store")) {
-    return "shopping";
-  }
-  if (lowerUrl.includes("news") || lowerUrl.includes("blog")) {
-    return "article";
-  }
-  if (lowerUrl.includes("twitter") || lowerUrl.includes("facebook") || 
-      lowerUrl.includes("instagram")) {
-    return "social";
-  }
-  
-  return "other";
+function guessCategory(url: string, title: string = ""): BookmarkCategory {
+  // Use our new tagging service for more accurate categorization
+  const tags = tagBookmark(url, title);
+  return tags[0]; // Return the first tag as the primary category
 }
 
 async function captureScreenshot(url: string, category: BookmarkCategory = 'other'): Promise<string | null> {
@@ -313,8 +277,11 @@ async function processBatch(bookmarks: Bookmark[]): Promise<Bookmark[]> {
           url: bookmark.url
         });
         
-        // Determine category from content
-        primaryCategory = guessCategoryFromDescription(description);
+        // Determine category from content using our improved tagging service
+        primaryCategory = guessCategoryFromDescription(description, bookmark.url, bookmark.title);
+        
+        // Get additional tags for better categorization
+        const tags = tagBookmark(bookmark.url, bookmark.title, description);
         
         // Generate screenshot with category color
         const screenshot = await captureScreenshot(bookmark.url, primaryCategory);
@@ -322,19 +289,20 @@ async function processBatch(bookmarks: Bookmark[]): Promise<Bookmark[]> {
         return {
           ...bookmark,
           description: description || `Resource from ${extractDomainFromUrl(bookmark.url)}`,
-          tags: [primaryCategory],
+          tags: tags, // Use all tags from the tagging service
           screenshot: screenshot || undefined
         };
       } catch (error) {
         console.error(`Error processing bookmark ${bookmark.url}:`, error);
         // Fallback to URL-based categorization
-        primaryCategory = guessCategory(bookmark.url);
+        const tags = tagBookmark(bookmark.url, bookmark.title);
+        primaryCategory = tags[0];
         const screenshot = await captureScreenshot(bookmark.url, primaryCategory);
         
         return {
           ...bookmark,
           description: `Resource from ${extractDomainFromUrl(bookmark.url)}`,
-          tags: [primaryCategory],
+          tags: tags,
           screenshot: screenshot || undefined
         };
       }

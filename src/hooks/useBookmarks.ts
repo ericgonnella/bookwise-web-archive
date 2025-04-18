@@ -1,8 +1,8 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { Bookmark, FilterOptions, SortOption, SortDirection, Tag } from "../types";
 import { getSampleBookmarks } from "../lib/bookmarkParser";
 import { useToast } from "./use-toast";
+import { tagBookmark } from "../services/tagger.service";
 
 const STORAGE_KEY = "bookwise_bookmarks_data";
 
@@ -62,7 +62,7 @@ const useBookmarks = () => {
     }
   }, [bookmarks]);
 
-  // Add new bookmarks
+  // Add new bookmarks with improved tagging
   const addBookmarks = (newBookmarks: Bookmark[]) => {
     setBookmarks(prevBookmarks => {
       // Create a map of existing bookmarks by URL for quick lookup
@@ -73,6 +73,11 @@ const useBookmarks = () => {
       
       for (const newBookmark of newBookmarks) {
         const existing = existingUrlMap.get(newBookmark.url);
+        
+        // Ensure the bookmark has proper tags using our tagging service
+        if (!newBookmark.tags || newBookmark.tags.length === 0) {
+          newBookmark.tags = tagBookmark(newBookmark.url, newBookmark.title, newBookmark.description || "");
+        }
         
         if (!existing) {
           // If bookmark doesn't exist, add it
@@ -85,7 +90,17 @@ const useBookmarks = () => {
             ...newBookmark,
             id: existing.id, // Keep the original ID
             likes: existing.likes, // Preserve user data
-            dislikes: existing.dislikes
+            dislikes: existing.dislikes,
+            // Combine tags from both
+            tags: [...new Set([...existing.tags, ...newBookmark.tags])]
+          };
+        } else {
+          // If bookmark exists but is older, just update the tags
+          const index = mergedBookmarks.findIndex(b => b.id === existing.id);
+          mergedBookmarks[index] = {
+            ...existing,
+            // Combine tags from both
+            tags: [...new Set([...existing.tags, ...newBookmark.tags])]
           };
         }
       }
@@ -262,11 +277,13 @@ const useBookmarks = () => {
       });
     });
     
-    return Array.from(tagMap.entries()).map(([name, count]) => ({
-      id: name,
-      name,
-      count
-    }));
+    return Array.from(tagMap.entries())
+      .map(([name, count]) => ({
+        id: name,
+        name,
+        count
+      }))
+      .sort((a, b) => b.count - a.count); // Sort tags by count
   }, [bookmarks]);
 
   // Filter and sort bookmarks
