@@ -1,3 +1,4 @@
+
 import { Bookmark, BookmarkCategory } from "@/types";
 import html2canvas from 'html2canvas';
 
@@ -46,7 +47,11 @@ async function fetchPageContent(url: string): Promise<{
   content: string[];
 }> {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { 
+      mode: 'cors', 
+      credentials: 'omit',
+      headers: { 'Accept': 'text/html' }
+    });
     const html = await response.text();
     
     // Create a temporary DOM element to parse the HTML
@@ -189,37 +194,9 @@ function guessCategory(url: string): BookmarkCategory {
 
 async function captureScreenshot(url: string): Promise<string | null> {
   try {
-    const response = await fetch(url);
-    const html = await response.text();
-    
-    // Create an iframe to load the page
-    const iframe = document.createElement('iframe');
-    iframe.style.width = '1200px';
-    iframe.style.height = '800px';
-    iframe.style.position = 'fixed';
-    iframe.style.top = '-9999px';
-    iframe.style.left = '-9999px';
-    document.body.appendChild(iframe);
-    
-    // Write the HTML content to the iframe
-    const iframeDoc = iframe.contentDocument;
-    if (iframeDoc) {
-      iframeDoc.open();
-      iframeDoc.write(html);
-      iframeDoc.close();
-    }
-    
-    // Wait for images to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Capture screenshot
-    const canvas = await html2canvas(iframe.contentDocument?.body || document.createElement('div'));
-    const screenshot = canvas.toDataURL('image/jpeg', 0.5); // Use JPEG with 50% quality for smaller size
-    
-    // Clean up
-    document.body.removeChild(iframe);
-    
-    return screenshot;
+    // CORS restrictions make this approach not work in most cases
+    // This is a simplified no-op version that won't block the import process
+    return null;
   } catch (error) {
     console.error('Error capturing screenshot:', error);
     return null;
@@ -232,43 +209,58 @@ async function captureScreenshot(url: string): Promise<string | null> {
 async function processBatch(bookmarks: Bookmark[]): Promise<Bookmark[]> {
   return Promise.all(
     bookmarks.map(async (bookmark) => {
-      // Fetch page content and screenshot in parallel
-      const [pageData, screenshot] = await Promise.all([
-        fetchPageContent(bookmark.url),
-        captureScreenshot(bookmark.url)
-      ]);
-
-      let description = generateDescriptionFromContent({
-        ...pageData,
-        url: bookmark.url
-      });
-      
+      let description = "";
       let primaryCategory: BookmarkCategory = "other";
-      let aiTags: string[] = [];
+      let screenshot: string | null = null;
       
-      // Use content for better categorization
-      const contentText = [pageData.title, description, ...pageData.content]
-        .join(' ').toLowerCase();
-      
-      if (contentText.includes('framework') || contentText.includes('library')) {
-        primaryCategory = 'frameworks';
-        aiTags = ['development'];
-      } else if (contentText.includes('tool') || contentText.includes('utility')) {
-        primaryCategory = 'tools';
-        aiTags = ['development'];
-      } else if (contentText.includes('learn') || contentText.includes('tutorial')) {
-        primaryCategory = 'tutorial';
-        aiTags = ['education'];
-      } else if (contentText.includes('documentation') || contentText.includes('reference')) {
-        primaryCategory = 'documentation';
-        aiTags = ['reference'];
-      } else if (contentText.includes('blog') || contentText.includes('article')) {
-        primaryCategory = 'article';
-        aiTags = ['blog'];
-      } else {
-        // Fallback to URL-based categorization
+      try {
+        // Try to fetch page content - may fail due to CORS
+        const pageData = await fetchPageContent(bookmark.url);
+        
+        // Generate description from whatever content we were able to get
+        description = generateDescriptionFromContent({
+          ...pageData,
+          url: bookmark.url
+        });
+        
+        // Try to get category from content
+        const contentText = [pageData.title, description, ...pageData.content]
+          .join(' ').toLowerCase();
+        
+        if (contentText.includes('framework') || contentText.includes('library')) {
+          primaryCategory = 'frameworks';
+        } else if (contentText.includes('tool') || contentText.includes('utility')) {
+          primaryCategory = 'tools';
+        } else if (contentText.includes('learn') || contentText.includes('tutorial')) {
+          primaryCategory = 'tutorial';
+        } else if (contentText.includes('documentation') || contentText.includes('reference')) {
+          primaryCategory = 'documentation';
+        } else if (contentText.includes('blog') || contentText.includes('article')) {
+          primaryCategory = 'article';
+        } else {
+          // Fallback to URL-based categorization
+          primaryCategory = guessCategory(bookmark.url);
+        }
+        
+        // Try to capture screenshot - may fail due to CORS
+        screenshot = await captureScreenshot(bookmark.url);
+        
+      } catch (error) {
+        console.error(`Error processing bookmark ${bookmark.url}:`, error);
+        // Fallback to URL-based categorization if content fetch fails
         primaryCategory = guessCategory(bookmark.url);
-        aiTags = [primaryCategory];
+        description = `Resource from ${extractDomainFromUrl(bookmark.url)}`;
+      }
+      
+      // Generate tags from category
+      let aiTags: string[] = [primaryCategory];
+      
+      // Domain-specific tags
+      const domain = extractDomainFromUrl(bookmark.url);
+      if (domain.includes("github")) {
+        aiTags.push("development");
+      } else if (domain.includes("medium") || domain.includes("blog")) {
+        aiTags.push("article");
       }
       
       // Limit tags to maximum 3 most relevant ones
@@ -276,8 +268,8 @@ async function processBatch(bookmarks: Bookmark[]): Promise<Bookmark[]> {
       
       return {
         ...bookmark,
-        description,
-        tags: finalTags,
+        description: description || bookmark.description || `Resource from ${extractDomainFromUrl(bookmark.url)}`,
+        tags: finalTags.length > 0 ? finalTags : bookmark.tags,
         screenshot: screenshot || undefined
       };
     })
@@ -298,8 +290,14 @@ export async function enhanceBookmarksWithAI(
   // Process bookmarks in batches
   for (let i = 0; i < totalBookmarks; i += batchSize) {
     const batch = bookmarks.slice(i, i + batchSize);
-    const processedBatch = await processBatch(batch);
-    enhancedBookmarks.push(...processedBatch);
+    try {
+      const processedBatch = await processBatch(batch);
+      enhancedBookmarks.push(...processedBatch);
+    } catch (error) {
+      console.error(`Error processing batch ${i}-${i+batchSize}:`, error);
+      // If batch processing fails, add the original bookmarks
+      enhancedBookmarks.push(...batch);
+    }
     
     // Report progress if callback provided
     if (onProgress) {

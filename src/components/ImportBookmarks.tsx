@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2 } from "lucide-react";
@@ -75,17 +76,19 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
             description: `Enhanced ${parsedBookmarks.length} bookmarks with AI descriptions and categories`,
           });
         } catch (aiError) {
+          console.error("AI processing error:", aiError);
           toast({
             variant: "destructive",
             title: "AI Processing Failed",
             description: "Could not enhance bookmarks with AI. Using basic categorization instead.",
           });
-          console.error("AI processing error:", aiError);
+          // Continue with the basic parsed bookmarks even if AI enhancement fails
         } finally {
           setIsAiProcessing(false);
         }
       }
 
+      // Always import the bookmarks, even if AI processing failed
       onImport(parsedBookmarks);
       setIsSuccess(true);
       toast({
@@ -130,8 +133,8 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isSuccess) {
+      // Delay hiding the import section to allow user to see success message
       timer = setTimeout(() => {
-        setIsSuccess(false);
         setShowImport(false);
       }, 3000);
     }
@@ -139,6 +142,9 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
       if (timer) clearTimeout(timer);
     };
   }, [isSuccess]);
+
+  // Don't render the component if showImport is false
+  if (!showImport) return null;
 
   return (
     <div className="mb-6">
