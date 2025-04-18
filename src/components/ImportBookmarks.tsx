@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { enhanceBookmarksWithAI } from "@/services/aiService";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
@@ -148,100 +149,109 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport }) => {
 
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-end mb-2 gap-2">
-        <Switch 
-          id="use-ai" 
-          checked={useAI} 
-          onCheckedChange={setUseAI} 
-        />
-        <Label htmlFor="use-ai" className="flex items-center gap-1">
-          <Sparkles className="h-4 w-4 text-amber-500" />
-          AI-Enhanced Import
-        </Label>
-      </div>
-      
-      <div
-        className={`p-6 border-2 border-dashed rounded-lg text-center transition-all ${
-          isDragging ? "border-primary bg-primary/5" : "border-border"
-        } ${isSuccess ? "bg-green-50 border-green-300" : ""} ${
-          error ? "bg-red-50 border-red-300" : ""
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input
-          type="file"
-          accept=".html"
-          className="hidden"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-        />
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-end gap-2">
+            <Switch 
+              id="use-ai" 
+              checked={useAI} 
+              onCheckedChange={setUseAI} 
+            />
+            <Label htmlFor="use-ai" className="flex items-center gap-1">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              AI-Enhanced Import
+            </Label>
+          </div>
+        </CardHeader>
+        
+        <CardContent>
+          <div
+            className={`p-6 border-2 border-dashed rounded-lg text-center transition-all ${
+              isDragging ? "border-primary bg-primary/5" : "border-border"
+            } ${isSuccess ? "bg-green-50 border-green-300" : ""} ${
+              error ? "bg-destructive/10 border-destructive" : ""
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              accept=".html"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+            />
 
-        <div className="flex flex-col items-center justify-center space-y-4">
-          {isSuccess ? (
-            <CheckCircle2 className="h-12 w-12 text-green-500" />
-          ) : error ? (
-            <AlertCircle className="h-12 w-12 text-red-500" />
-          ) : isAiProcessing ? (
-            <div className="text-primary animate-pulse flex flex-col items-center">
-              <Sparkles className="h-12 w-12 mb-2" />
-              <p>AI is analyzing your bookmarks...</p>
-              <div className="w-full max-w-xs mt-4">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-muted-foreground mt-2">
-                  {Math.round(progress)}% complete
+            <div className="flex flex-col items-center justify-center space-y-4">
+              {isSuccess ? (
+                <CheckCircle2 className="h-12 w-12 text-green-500" />
+              ) : error ? (
+                <AlertCircle className="h-12 w-12 text-destructive" />
+              ) : isAiProcessing ? (
+                <div className="text-primary flex flex-col items-center">
+                  <Sparkles className="h-12 w-12 mb-2 animate-pulse" />
+                  <p>AI is analyzing your bookmarks...</p>
+                  <div className="w-full max-w-xs mt-4">
+                    <Progress value={progress} className="h-2" />
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {Math.round(progress)}% complete
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <Upload className="h-12 w-12 text-primary/70" />
+              )}
+
+              <div className="space-y-2">
+                <h3 className="font-medium text-lg">
+                  {isSuccess
+                    ? "Import Successful"
+                    : error
+                    ? "Import Failed"
+                    : isAiProcessing
+                    ? "AI Processing"
+                    : "Import Bookmarks"}
+                </h3>
+                <p className="text-muted-foreground">
+                  {isSuccess
+                    ? "Your bookmarks have been imported"
+                    : error
+                    ? error
+                    : isAiProcessing
+                    ? "Adding descriptions and intelligent categorization"
+                    : useAI
+                    ? "Drag and drop your bookmarks.html file here for AI-enhanced import"
+                    : "Drag and drop your bookmarks.html file here"}
                 </p>
               </div>
+
+              {!isSuccess && !isProcessing && !isAiProcessing && (
+                <Button
+                  onClick={handleButtonClick}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                >
+                  <FileUp className="h-4 w-4" />
+                  Select File
+                </Button>
+              )}
+
+              {isProcessing && !isAiProcessing && (
+                <div className="flex items-center gap-2 text-primary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing...
+                </div>
+              )}
             </div>
-          ) : (
-            <Upload className="h-12 w-12 text-primary/70" />
-          )}
-
-          <div className="space-y-2">
-            <h3 className="font-medium text-lg">
-              {isSuccess
-                ? "Import Successful"
-                : error
-                ? "Import Failed"
-                : isAiProcessing
-                ? "AI Processing"
-                : "Import Bookmarks"}
-            </h3>
-            <p className="text-muted-foreground">
-              {isSuccess
-                ? "Your bookmarks have been imported"
-                : error
-                ? error
-                : isAiProcessing
-                ? "Adding descriptions and intelligent categorization"
-                : useAI
-                ? "Drag and drop your bookmarks.html file here for AI-enhanced import"
-                : "Drag and drop your bookmarks.html file here"}
-            </p>
           </div>
-
-          {!isSuccess && !isProcessing && !isAiProcessing && (
-            <Button
-              onClick={handleButtonClick}
-              className="flex items-center gap-2"
-              variant="outline"
-            >
-              <FileUp className="h-4 w-4" />
-              Select File
-            </Button>
-          )}
-
-          {isProcessing && !isAiProcessing && (
-            <div className="animate-pulse text-primary">Processing...</div>
-          )}
-        </div>
-      </div>
-      <p className="text-xs text-muted-foreground mt-2">
-        {useAI 
-          ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
-          : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
-      </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {useAI 
+              ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
+              : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
