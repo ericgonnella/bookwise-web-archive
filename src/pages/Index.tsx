@@ -12,8 +12,12 @@ import { ViewMode } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Import, SlidersHorizontal } from "lucide-react";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  // Get user information from auth context
+  const { currentUser } = useAuth();
+  
   // Initialize view mode
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   // Initialize import dialog state
@@ -59,6 +63,15 @@ const Index = () => {
   return (
     <Layout>
       <div className="container py-6">
+        {/* Welcome message */}
+        {currentUser && (
+          <div className="bg-primary/10 rounded-lg p-4 mb-6 flex items-center">
+            <h3 className="text-xl font-medium">
+              Welcome back, <span className="font-bold">{currentUser.username}</span>!
+            </h3>
+          </div>
+        )}
+        
         {/* Top bar with controls */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">

@@ -29,3 +29,15 @@ export interface FilterOptions {
   sortBy: SortOption;
   sortDirection: SortDirection;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+}
