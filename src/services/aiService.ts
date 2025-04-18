@@ -20,6 +20,75 @@ export const BOOKMARK_CATEGORIES = [
   "other"
 ] as const;
 
+// Color mapping for different bookmark categories
+const CATEGORY_COLORS = {
+  development: '#8B5CF6', // Vivid Purple
+  tools: '#0EA5E9',      // Ocean Blue
+  frameworks: '#6E59A5',  // Tertiary Purple
+  libraries: '#7E69AB',   // Secondary Purple
+  documentation: '#D3E4FD', // Soft Blue
+  tutorial: '#F2FCE2',    // Soft Green
+  blog: '#FDE1D3',       // Soft Peach
+  article: '#E5DEFF',    // Soft Purple
+  news: '#FEF7CD',       // Soft Yellow
+  social: '#FFDEE2',     // Soft Pink
+  entertainment: '#FEC6A1', // Soft Orange
+  shopping: '#F97316',    // Bright Orange
+  other: '#8E9196'       // Neutral Gray
+} as const;
+
+// Get color based on bookmark category
+function getCategoryColor(category: BookmarkCategory): string {
+  return CATEGORY_COLORS[category] || CATEGORY_COLORS.other;
+}
+
+// Generate a placeholder image with site domain and category-based colors
+function generatePlaceholderImage(domain: string, category: BookmarkCategory = 'other'): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 500;
+  canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+  
+  if (ctx) {
+    // Use category color for background
+    const bgColor = getCategoryColor(category);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add a subtle pattern
+    ctx.strokeStyle = `${bgColor}80`; // 50% opacity
+    for (let i = 0; i < canvas.width; i += 20) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvas.height);
+      ctx.stroke();
+    }
+    
+    // Draw domain name
+    ctx.font = 'bold 28px system-ui';
+    ctx.fillStyle = category === 'documentation' || category === 'tutorial' ? '#333333' : '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Handle long domain names
+    const maxWidth = canvas.width - 40;
+    let fontSize = 28;
+    while (ctx.measureText(domain).width > maxWidth && fontSize > 16) {
+      fontSize--;
+      ctx.font = `bold ${fontSize}px system-ui`;
+    }
+    
+    ctx.fillText(domain, canvas.width / 2, canvas.height / 2);
+    
+    // Draw category label
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = category === 'documentation' || category === 'tutorial' ? '#666666' : '#FFFFFF';
+    ctx.fillText(category.toUpperCase(), canvas.width / 2, canvas.height / 2 + 40);
+  }
+  
+  return canvas.toDataURL('image/jpeg', 0.8);
+}
+
 async function fetchMetaDescription(url: string): Promise<string> {
   try {
     const response = await fetch(url);
@@ -216,107 +285,61 @@ function guessCategory(url: string): BookmarkCategory {
 }
 
 // Generate a placeholder image with site domain if we can't get a real screenshot
-function generatePlaceholderImage(domain: string): string {
+function generatePlaceholderImage(domain: string, category: BookmarkCategory = 'other'): string {
   const canvas = document.createElement('canvas');
   canvas.width = 500;
   canvas.height = 300;
   const ctx = canvas.getContext('2d');
   
   if (ctx) {
-    // Fill background
-    ctx.fillStyle = '#f4f4f8';
+    // Use category color for background
+    const bgColor = getCategoryColor(category);
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw border
-    ctx.strokeStyle = '#e2e2e2';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+    // Add a subtle pattern
+    ctx.strokeStyle = `${bgColor}80`; // 50% opacity
+    for (let i = 0; i < canvas.width; i += 20) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvas.height);
+      ctx.stroke();
+    }
     
-    // Draw favicon placeholder
-    ctx.fillStyle = '#dddddd';
-    ctx.beginPath();
-    ctx.arc(250, 120, 40, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Draw site name
-    ctx.font = 'bold 24px Arial';
-    ctx.fillStyle = '#333333';
+    // Draw domain name
+    ctx.font = 'bold 28px system-ui';
+    ctx.fillStyle = category === 'documentation' || category === 'tutorial' ? '#333333' : '#FFFFFF';
     ctx.textAlign = 'center';
-    ctx.fillText(domain, 250, 200);
+    ctx.textBaseline = 'middle';
     
-    // Draw "screenshot unavailable" text
-    ctx.font = '16px Arial';
-    ctx.fillStyle = '#888888';
-    ctx.fillText('Preview not available', 250, 240);
+    // Handle long domain names
+    const maxWidth = canvas.width - 40;
+    let fontSize = 28;
+    while (ctx.measureText(domain).width > maxWidth && fontSize > 16) {
+      fontSize--;
+      ctx.font = `bold ${fontSize}px system-ui`;
+    }
+    
+    ctx.fillText(domain, canvas.width / 2, canvas.height / 2);
+    
+    // Draw category label
+    ctx.font = '16px system-ui';
+    ctx.fillStyle = category === 'documentation' || category === 'tutorial' ? '#666666' : '#FFFFFF';
+    ctx.fillText(category.toUpperCase(), canvas.width / 2, canvas.height / 2 + 40);
   }
   
-  return canvas.toDataURL('image/jpeg', 0.7);
+  return canvas.toDataURL('image/jpeg', 0.8);
 }
 
-async function captureScreenshot(url: string): Promise<string | null> {
+async function captureScreenshot(url: string, category: BookmarkCategory = 'other'): Promise<string | null> {
   try {
-    // Create a temporary iframe to load the page
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.top = '-10000px';  // Hide off-screen
-    iframe.style.width = '1024px';   // Standard width
-    iframe.style.height = '768px';   // Standard height
-    iframe.style.visibility = 'hidden';
-    
-    // Instead of directly assigning to the read-only property, use the setAttribute method
-    iframe.setAttribute('sandbox', 'allow-same-origin');  // Restrict iframe capabilities for security
-    
-    document.body.appendChild(iframe);
-    
-    // Set a timeout to handle cases where the iframe doesn't load
-    const iframeLoadPromise = new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Iframe loading timed out'));
-      }, 5000);
-      
-      iframe.onload = () => {
-        clearTimeout(timeoutId);
-        resolve();
-      };
-      
-      iframe.onerror = () => {
-        clearTimeout(timeoutId);
-        reject(new Error('Iframe failed to load'));
-      };
-    });
-    
-    // Try to load the URL in the iframe
-    iframe.src = url;
-    
-    try {
-      await iframeLoadPromise;
-      
-      // Try to capture screenshot
-      const canvas = await html2canvas(iframe.contentDocument?.documentElement || iframe.contentWindow?.document.documentElement, {
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        scale: 0.5, // Reduce size for thumbnails
-        logging: false,
-        width: 1024,
-        height: 768
-      });
-      
-      const screenshot = canvas.toDataURL('image/jpeg', 0.5);
-      return screenshot;
-    } catch (canvasError) {
-      console.error('Canvas generation failed:', canvasError);
-      // Return a placeholder instead
-      const domain = extractDomainFromUrl(url);
-      return generatePlaceholderImage(domain);
-    } finally {
-      // Clean up
-      document.body.removeChild(iframe);
-    }
-  } catch (error) {
-    console.error('Screenshot capture error:', error);
     const domain = extractDomainFromUrl(url);
-    return generatePlaceholderImage(domain);
+    // Skip the iframe attempt and directly return a placeholder
+    return generatePlaceholderImage(domain, category);
+  } catch (error) {
+    console.error('Screenshot generation error:', error);
+    const domain = extractDomainFromUrl(url);
+    return generatePlaceholderImage(domain, 'other');
   }
 }
 
@@ -328,67 +351,40 @@ async function processBatch(bookmarks: Bookmark[]): Promise<Bookmark[]> {
     bookmarks.map(async (bookmark) => {
       let description = "";
       let primaryCategory: BookmarkCategory = "other";
-      let screenshot: string | null = null;
       
       try {
-        // Try to fetch page content - may fail due to CORS
+        // Try to fetch page content for categorization
         const pageData = await fetchPageContent(bookmark.url);
-        
-        // Generate description from whatever content we were able to get
         description = generateDescriptionFromContent({
           ...pageData,
           url: bookmark.url
         });
         
-        // Try to get category from content
-        const contentText = [pageData.title, description, ...pageData.content]
-          .join(' ').toLowerCase();
+        // Determine category from content
+        primaryCategory = guessCategoryFromDescription(description);
         
-        if (contentText.includes('framework') || contentText.includes('library')) {
-          primaryCategory = 'frameworks';
-        } else if (contentText.includes('tool') || contentText.includes('utility')) {
-          primaryCategory = 'tools';
-        } else if (contentText.includes('learn') || contentText.includes('tutorial')) {
-          primaryCategory = 'tutorial';
-        } else if (contentText.includes('documentation') || contentText.includes('reference')) {
-          primaryCategory = 'documentation';
-        } else if (contentText.includes('blog') || contentText.includes('article')) {
-          primaryCategory = 'article';
-        } else {
-          // Fallback to URL-based categorization
-          primaryCategory = guessCategory(bookmark.url);
-        }
+        // Generate screenshot with category color
+        const screenshot = await captureScreenshot(bookmark.url, primaryCategory);
         
-        // Try to capture screenshot - may fail due to CORS
-        screenshot = await captureScreenshot(bookmark.url);
-        
+        return {
+          ...bookmark,
+          description: description || `Resource from ${extractDomainFromUrl(bookmark.url)}`,
+          tags: [primaryCategory],
+          screenshot: screenshot || undefined
+        };
       } catch (error) {
         console.error(`Error processing bookmark ${bookmark.url}:`, error);
-        // Fallback to URL-based categorization if content fetch fails
+        // Fallback to URL-based categorization
         primaryCategory = guessCategory(bookmark.url);
-        description = `Resource from ${extractDomainFromUrl(bookmark.url)}`;
+        const screenshot = await captureScreenshot(bookmark.url, primaryCategory);
+        
+        return {
+          ...bookmark,
+          description: `Resource from ${extractDomainFromUrl(bookmark.url)}`,
+          tags: [primaryCategory],
+          screenshot: screenshot || undefined
+        };
       }
-      
-      // Generate tags from category
-      let aiTags: string[] = [primaryCategory];
-      
-      // Domain-specific tags
-      const domain = extractDomainFromUrl(bookmark.url);
-      if (domain.includes("github")) {
-        aiTags.push("development");
-      } else if (domain.includes("medium") || domain.includes("blog")) {
-        aiTags.push("article");
-      }
-      
-      // Limit tags to maximum 3 most relevant ones
-      const finalTags = [...new Set([primaryCategory, ...aiTags.slice(0, 2)])];
-      
-      return {
-        ...bookmark,
-        description: description || bookmark.description || `Resource from ${extractDomainFromUrl(bookmark.url)}`,
-        tags: finalTags.length > 0 ? finalTags : bookmark.tags,
-        screenshot: screenshot || undefined
-      };
     })
   );
 }
