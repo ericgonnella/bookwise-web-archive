@@ -215,46 +215,46 @@ function guessCategory(url: string): BookmarkCategory {
   return "other";
 }
 
+// Generate a placeholder image with site domain if we can't get a real screenshot
+function generatePlaceholderImage(domain: string): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 500;
+  canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+  
+  if (ctx) {
+    // Fill background
+    ctx.fillStyle = '#f4f4f8';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw border
+    ctx.strokeStyle = '#e2e2e2';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+    
+    // Draw favicon placeholder
+    ctx.fillStyle = '#dddddd';
+    ctx.beginPath();
+    ctx.arc(250, 120, 40, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Draw site name
+    ctx.font = 'bold 24px Arial';
+    ctx.fillStyle = '#333333';
+    ctx.textAlign = 'center';
+    ctx.fillText(domain, 250, 200);
+    
+    // Draw "screenshot unavailable" text
+    ctx.font = '16px Arial';
+    ctx.fillStyle = '#888888';
+    ctx.fillText('Preview not available', 250, 240);
+  }
+  
+  return canvas.toDataURL('image/jpeg', 0.7);
+}
+
 async function captureScreenshot(url: string): Promise<string | null> {
   try {
-    // Generate a placeholder image with site domain if we can't get a real screenshot
-    const generatePlaceholderImage = (domain: string): string => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 500;
-      canvas.height = 300;
-      const ctx = canvas.getContext('2d');
-      
-      if (ctx) {
-        // Fill background
-        ctx.fillStyle = '#f4f4f8';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw border
-        ctx.strokeStyle = '#e2e2e2';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
-        
-        // Draw favicon placeholder
-        ctx.fillStyle = '#dddddd';
-        ctx.beginPath();
-        ctx.arc(250, 120, 40, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        // Draw site name
-        ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = '#333333';
-        ctx.textAlign = 'center';
-        ctx.fillText(domain, 250, 200);
-        
-        // Draw "screenshot unavailable" text
-        ctx.font = '16px Arial';
-        ctx.fillStyle = '#888888';
-        ctx.fillText('Preview not available', 250, 240);
-      }
-      
-      return canvas.toDataURL('image/jpeg', 0.7);
-    };
-
     // Create a temporary iframe to load the page
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
@@ -262,7 +262,9 @@ async function captureScreenshot(url: string): Promise<string | null> {
     iframe.style.width = '1024px';   // Standard width
     iframe.style.height = '768px';   // Standard height
     iframe.style.visibility = 'hidden';
-    iframe.sandbox = 'allow-same-origin';  // Restrict iframe capabilities for security
+    
+    // Instead of directly assigning to the read-only property, use the setAttribute method
+    iframe.setAttribute('sandbox', 'allow-same-origin');  // Restrict iframe capabilities for security
     
     document.body.appendChild(iframe);
     
