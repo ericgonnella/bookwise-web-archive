@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Chrome, Globe, Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -100,7 +99,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
                 Chrome Extension
               </Button>
             ) : null}
-            {browserType === 'firefox' || browserType === 'unknown' ? (
+            {(browserType === 'firefox' || browserType === 'unknown') ? (
               <Button variant="outline" className="flex items-center gap-2" disabled>
                 <Globe className="h-4 w-4" />
                 {browserType === 'firefox' ? 'Firefox' : 'Browser'} Add-on
