@@ -39,3 +39,4 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onImportClick }) => {
 };
 
 export default EmptyState;
+
