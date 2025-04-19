@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, FilterIcon } from "lucide-react";
+import { Upload, FileUp, CheckCircle2, AlertCircle, Sparkles, Loader2, Info, FilterIcon } from "lucide-react";
 import { parseBookmarksHtml } from "../lib/bookmarkParser";
 import { Progress } from "@/components/ui/progress";
 import { Bookmark } from "../types";
@@ -9,6 +9,7 @@ import { enhanceBookmarksWithAI } from "@/services/aiService";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
@@ -253,7 +254,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col space-y-4">
-            <div className="flex flex-col space-y-4">
+            <div className="flex flex-col space-y-2">
               <div className="flex items-center justify-end gap-2">
                 <Switch 
                   id="use-ai" 
@@ -263,9 +264,6 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                 <Label htmlFor="use-ai" className="flex items-center gap-1">
                   <Sparkles className="h-4 w-4 text-amber-500" />
                   AI-Enhanced Import
-                  <p className="text-xs text-muted-foreground ml-2">
-                    Use AI to generate descriptions and smart categorization for your bookmarks
-                  </p>
                 </Label>
               </div>
 
@@ -278,9 +276,6 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                 <Label htmlFor="auto-dedupe" className="flex items-center gap-1">
                   <FilterIcon className="h-4 w-4 text-blue-500" />
                   Smart Deduplication
-                  <p className="text-xs text-muted-foreground ml-2">
-                    Automatically detect and handle duplicate bookmarks during import
-                  </p>
                 </Label>
               </div>
 
@@ -291,14 +286,23 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                     checked={mergeMetadata} 
                     onCheckedChange={setMergeMetadata} 
                   />
-                  <Label htmlFor="merge-metadata" className="flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground">
-                      Combine tags & metadata from duplicates instead of skipping
-                    </span>
+                  <Label htmlFor="merge-metadata" className="text-xs text-muted-foreground">
+                    Merge tags & metadata
                   </Label>
                 </div>
               )}
             </div>
+            
+            {useAI && (
+              <Alert variant="default" className="bg-muted/50">
+                <Info className="h-4 w-4" />
+                <AlertTitle>About Website Screenshots</AlertTitle>
+                <AlertDescription className="text-xs text-muted-foreground">
+                  Some websites may block screenshot capture due to security settings. 
+                  In these cases, a placeholder image will be used instead.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         </CardHeader>
         
@@ -358,6 +362,8 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                     ? error
                     : isAiProcessing
                     ? "Adding descriptions and intelligent categorization"
+                    : useAI
+                    ? "Drag and drop your bookmarks.html file here for AI-enhanced import"
                     : "Drag and drop your bookmarks.html file here"}
                 </p>
               </div>
@@ -383,7 +389,7 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
           </div>
           <p className="text-xs text-muted-foreground mt-2">
             {useAI 
-              ? "AI will analyze your bookmarks to provide descriptions and better categorization" 
+              ? "AI will analyze your bookmarks in batches to provide descriptions and better categorization" 
               : autoDedupe
               ? "Smart deduplication will prevent duplicate bookmarks and normalize URLs"
               : "You can export bookmarks from Chrome, Firefox, Safari, or Edge"}
