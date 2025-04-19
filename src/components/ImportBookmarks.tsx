@@ -10,6 +10,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 
 interface ImportBookmarksProps {
   onImport: (bookmarks: Bookmark[]) => void;
@@ -259,24 +264,42 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                 <Switch 
                   id="use-ai" 
                   checked={useAI} 
-                  onCheckedChange={setUseAI} 
+                  onCheckedChange={setUseAI}
                 />
-                <Label htmlFor="use-ai" className="flex items-center gap-1">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  AI-Enhanced Import
-                </Label>
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <Label htmlFor="use-ai" className="flex items-center gap-1 cursor-pointer">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      AI-Enhanced Import
+                    </Label>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80">
+                    <p className="text-sm">
+                      Uses AI to automatically generate descriptions, categorize bookmarks, and extract key information from each website.
+                    </p>
+                  </HoverCardContent>
+                </HoverCard>
               </div>
 
               <div className="flex items-center justify-end gap-2">
                 <Switch 
                   id="auto-dedupe" 
                   checked={autoDedupe} 
-                  onCheckedChange={setAutoDedupe} 
+                  onCheckedChange={setAutoDedupe}
                 />
-                <Label htmlFor="auto-dedupe" className="flex items-center gap-1">
-                  <FilterIcon className="h-4 w-4 text-blue-500" />
-                  Smart Deduplication
-                </Label>
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <Label htmlFor="auto-dedupe" className="flex items-center gap-1 cursor-pointer">
+                      <FilterIcon className="h-4 w-4 text-blue-500" />
+                      Smart Deduplication
+                    </Label>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80">
+                    <p className="text-sm">
+                      Automatically detects and handles duplicate bookmarks by comparing URLs and normalizing them to prevent duplicates.
+                    </p>
+                  </HoverCardContent>
+                </HoverCard>
               </div>
 
               {autoDedupe && (
@@ -284,11 +307,20 @@ const ImportBookmarks: React.FC<ImportBookmarksProps> = ({ onImport, existingBoo
                   <Switch 
                     id="merge-metadata" 
                     checked={mergeMetadata} 
-                    onCheckedChange={setMergeMetadata} 
+                    onCheckedChange={setMergeMetadata}
                   />
-                  <Label htmlFor="merge-metadata" className="text-xs text-muted-foreground">
-                    Merge tags & metadata
-                  </Label>
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <Label htmlFor="merge-metadata" className="text-sm text-muted-foreground cursor-pointer">
+                        Merge tags & metadata
+                      </Label>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80">
+                      <p className="text-sm">
+                        When duplicates are found, combine tags and keep the most recent metadata instead of discarding the duplicate entirely.
+                      </p>
+                    </HoverCardContent>
+                  </HoverCard>
                 </div>
               )}
             </div>
