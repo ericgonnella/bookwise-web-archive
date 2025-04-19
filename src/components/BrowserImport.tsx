@@ -32,6 +32,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
     setProgress(0);
 
     try {
+      // Request permissions first
       const permissionsGranted = await requestBrowserPermissions();
       
       if (!permissionsGranted) {
@@ -40,6 +41,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
       
       setProgress(30);
       
+      // Import bookmarks
       const bookmarks = await importFromBrowser();
       
       setProgress(70);
@@ -72,6 +74,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
     }
   };
 
+  // Check if browser extension access is available
   const isExtensionAvailable = isChromeAvailable() || isFirefoxAvailable();
 
   if (!isExtensionAvailable) {
@@ -99,10 +102,10 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
                 Chrome Extension
               </Button>
             ) : null}
-            {(browserType === 'firefox' || browserType === 'unknown') ? (
+            {browserType === 'firefox' || browserType === 'unknown' ? (
               <Button variant="outline" className="flex items-center gap-2" disabled>
                 <Globe className="h-4 w-4" />
-                {browserType === 'firefox' ? 'Firefox' : 'Browser'} Add-on
+                Firefox Add-on
               </Button>
             ) : null}
           </div>
@@ -154,7 +157,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
             ) : (
               <Globe className="h-4 w-4" />
             )}
-            {isLoading ? "Importing..." : `Import from ${browserType === 'chrome' ? 'Chrome' : 'Browser'}`}
+            {isLoading ? "Importing..." : `Import from ${browserType === 'chrome' ? 'Chrome' : 'Firefox'}`}
           </Button>
         </div>
       </CardContent>

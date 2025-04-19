@@ -40,7 +40,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onImportClick, onBrowserImportC
             ) : (
               <Globe className="h-4 w-4" />
             )}
-            Import from {browserType === 'chrome' ? 'Chrome' : 'Browser'}
+            Import from {browserType === 'chrome' ? 'Chrome' : 'Firefox'}
           </Button>
         )}
       </div>
