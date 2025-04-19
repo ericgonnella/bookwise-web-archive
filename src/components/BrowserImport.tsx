@@ -32,7 +32,6 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
     setProgress(0);
 
     try {
-      // Request permissions first
       const permissionsGranted = await requestBrowserPermissions();
       
       if (!permissionsGranted) {
@@ -41,7 +40,6 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
       
       setProgress(30);
       
-      // Import bookmarks
       const bookmarks = await importFromBrowser();
       
       setProgress(70);
@@ -74,7 +72,6 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
     }
   };
 
-  // Check if browser extension access is available
   const isExtensionAvailable = isChromeAvailable() || isFirefoxAvailable();
 
   if (!isExtensionAvailable) {
