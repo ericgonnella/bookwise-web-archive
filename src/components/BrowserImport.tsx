@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Chrome, Globe, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Chrome, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { 
   importFromBrowser,
   requestBrowserPermissions, 
@@ -32,7 +32,6 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
     setProgress(0);
 
     try {
-      // Request permissions first
       const permissionsGranted = await requestBrowserPermissions();
       
       if (!permissionsGranted) {
@@ -41,7 +40,6 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
       
       setProgress(30);
       
-      // Import bookmarks
       const bookmarks = await importFromBrowser();
       
       setProgress(70);
@@ -74,7 +72,6 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
     }
   };
 
-  // Check if browser extension access is available
   const isExtensionAvailable = isChromeAvailable() || isFirefoxAvailable();
 
   if (!isExtensionAvailable) {
@@ -97,14 +94,12 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
           </ol>
           <div className="flex space-x-2">
             {browserType === 'chrome' || browserType === 'unknown' ? (
-              <Button variant="outline" className="flex items-center gap-2" disabled>
-                <Chrome className="h-4 w-4" />
+              <Button variant="outline" disabled>
                 Chrome Extension
               </Button>
             ) : null}
             {browserType === 'firefox' || browserType === 'unknown' ? (
-              <Button variant="outline" className="flex items-center gap-2" disabled>
-                <Globe className="h-4 w-4" />
+              <Button variant="outline" disabled>
                 Firefox Add-on
               </Button>
             ) : null}
@@ -154,9 +149,7 @@ const BrowserImport: React.FC<BrowserImportProps> = ({ onImport }) => {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : browserType === 'chrome' ? (
               <Chrome className="h-4 w-4" />
-            ) : (
-              <Globe className="h-4 w-4" />
-            )}
+            ) : null}
             {isLoading ? "Importing..." : `Import from ${browserType === 'chrome' ? 'Chrome' : 'Firefox'}`}
           </Button>
         </div>
