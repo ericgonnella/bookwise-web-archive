@@ -1,16 +1,15 @@
-import { useState, useEffect, useMemo } from "react";
+
+import { useState, useMemo } from "react";
 import { Bookmark, FilterOptions, SortOption, SortDirection, Tag } from "../types";
 import { getSampleBookmarks } from "../lib/bookmarkParser";
 import { useToast } from "./use-toast";
 import { tagBookmark } from "../services/tagger.service";
 
-const STORAGE_KEY = "bookwise_bookmarks_data";
-
 const useBookmarks = () => {
   const { toast } = useToast();
   
   // State for bookmarks
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(getSampleBookmarks());
   
   // State for filters and sorting
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -20,86 +19,35 @@ const useBookmarks = () => {
     sortDirection: "desc"
   });
 
-  // Load bookmarks from localStorage or use sample data
-  useEffect(() => {
-    const loadBookmarks = () => {
-      try {
-        const storedBookmarks = localStorage.getItem(STORAGE_KEY);
-        if (storedBookmarks) {
-          const parsedBookmarks = JSON.parse(storedBookmarks);
-          
-          // Convert date strings back to Date objects
-          const processedBookmarks = parsedBookmarks.map((bookmark: any) => ({
-            ...bookmark,
-            dateAdded: new Date(bookmark.dateAdded),
-            lastViewedAt: bookmark.lastViewedAt ? new Date(bookmark.lastViewedAt) : undefined,
-            remindAt: bookmark.remindAt ? new Date(bookmark.remindAt) : undefined
-          }));
-          
-          setBookmarks(processedBookmarks);
-          return;
-        }
-      } catch (error) {
-        console.error("Error loading bookmarks from storage:", error);
-      }
-      
-      // Fallback to sample data
-      const sampleBookmarks = getSampleBookmarks();
-      setBookmarks(sampleBookmarks);
-    };
-    
-    loadBookmarks();
-  }, []);
-  
-  // Save bookmarks to localStorage whenever they change
-  useEffect(() => {
-    if (bookmarks.length > 0) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
-      } catch (error) {
-        console.error("Error saving bookmarks to storage:", error);
-      }
-    }
-  }, [bookmarks]);
-
   // Add new bookmarks with improved tagging
   const addBookmarks = (newBookmarks: Bookmark[]) => {
     setBookmarks(prevBookmarks => {
-      // Create a map of existing bookmarks by URL for quick lookup
       const existingUrlMap = new Map(prevBookmarks.map(b => [b.url, b]));
-      
-      // Process each new bookmark
       const mergedBookmarks = [...prevBookmarks];
       
       for (const newBookmark of newBookmarks) {
         const existing = existingUrlMap.get(newBookmark.url);
         
-        // Ensure the bookmark has proper tags using our tagging service
         if (!newBookmark.tags || newBookmark.tags.length === 0) {
           newBookmark.tags = tagBookmark(newBookmark.url, newBookmark.title, newBookmark.description || "");
         }
         
         if (!existing) {
-          // If bookmark doesn't exist, add it
           mergedBookmarks.push(newBookmark);
         } else if (newBookmark.dateAdded > existing.dateAdded) {
-          // If bookmark exists but new one is more recent, replace it
           const index = mergedBookmarks.findIndex(b => b.id === existing.id);
           mergedBookmarks[index] = {
             ...existing,
             ...newBookmark,
-            id: existing.id, // Keep the original ID
-            likes: existing.likes, // Preserve user data
+            id: existing.id,
+            likes: existing.likes,
             dislikes: existing.dislikes,
-            // Combine tags from both
             tags: [...new Set([...existing.tags, ...newBookmark.tags])]
           };
         } else {
-          // If bookmark exists but is older, just update the tags
           const index = mergedBookmarks.findIndex(b => b.id === existing.id);
           mergedBookmarks[index] = {
             ...existing,
-            // Combine tags from both
             tags: [...new Set([...existing.tags, ...newBookmark.tags])]
           };
         }
@@ -164,7 +112,6 @@ const useBookmarks = () => {
   
   // Set reminder for a bookmark
   const remindBookmark = (id: string) => {
-    // Set reminder for 7 days from now
     const remindDate = new Date();
     remindDate.setDate(remindDate.getDate() + 7);
     
@@ -227,7 +174,6 @@ const useBookmarks = () => {
         break;
         
       case 'tag':
-        // In a real app, this would open a tag selection dialog
         toast({
           title: "Tag Feature",
           description: "Tag selection dialog would appear here",
@@ -283,14 +229,13 @@ const useBookmarks = () => {
         name,
         count
       }))
-      .sort((a, b) => b.count - a.count); // Sort tags by count
+      .sort((a, b) => b.count - a.count);
   }, [bookmarks]);
 
   // Filter and sort bookmarks
   const filteredAndSortedBookmarks = useMemo(() => {
     let result = [...bookmarks];
     
-    // Apply search filter
     if (filterOptions.search) {
       const searchLower = filterOptions.search.toLowerCase();
       result = result.filter(
@@ -300,14 +245,12 @@ const useBookmarks = () => {
       );
     }
     
-    // Apply tag filter
     if (filterOptions.tags.length > 0) {
       result = result.filter(
         b => filterOptions.tags.some(tag => b.tags.includes(tag))
       );
     }
     
-    // Sort bookmarks
     result.sort((a, b) => {
       let comparison = 0;
       
